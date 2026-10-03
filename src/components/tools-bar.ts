@@ -5,6 +5,7 @@ import type { ToolMode } from '../core/types';
 const MODES: { id: ToolMode; label: string }[] = [
   { id: 'pencil', label: '✎ Potlood' },
   { id: 'eraser', label: '⌫ Gum' },
+  { id: 'picker', label: '💧 Pipet' },
   { id: 'zoom', label: '⌕ Zoom' },
   { id: 'pan', label: '✥ Verslepen' },
 ];

@@ -242,6 +242,17 @@ export class PreviewPane extends LitElement {
       canvas.style.cursor = 'grabbing';
       return;
     }
+    if (store.mode === 'picker') {
+      if (this.kind !== 'output') return;
+      if (e.button !== 0 && e.button !== 2) return;
+      const p = this.toIff(this.point(e, canvas));
+      const r = store.result;
+      if (!r) return;
+      const index = r.indexed[p.y * r.width + p.x];
+      if (e.button === 2) store.setBg(index);
+      else store.setFg(index);
+      return;
+    }
     if (this.kind !== 'output') return;
     if (e.button !== 0 && e.button !== 2) return;
     const p = this.toIff(this.point(e, canvas));
@@ -270,7 +281,7 @@ export class PreviewPane extends LitElement {
     this.drag = null;
     const canvas = this.canvas();
     if (canvas) {
-      canvas.style.cursor = store.mode === 'zoom' ? 'zoom-in' : store.mode === 'pan' ? 'grab' : 'crosshair';
+      canvas.style.cursor = store.mode === 'zoom' ? 'zoom-in' : store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
     }
   }
 

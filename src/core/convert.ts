@@ -73,7 +73,7 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
   for (let y = 0; y < work.height; y++) {
     for (let x = 0; x < work.width; x++) {
       const i = (y * work.width + x) * 4;
-      if (src.data[i + 3] < 8) {
+      if (src.data[i + 3] < 128) {
         dst.data[i + 3] = 0;
         continue;
       }
@@ -83,7 +83,7 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
       dst.data[i] = c[0];
       dst.data[i + 1] = c[1];
       dst.data[i + 2] = c[2];
-      dst.data[i + 3] = src.data[i + 3];
+      dst.data[i + 3] = 255;
 
       if (o.dither) {
         const er = floats[i] - c[0];
