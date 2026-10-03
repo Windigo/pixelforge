@@ -170,7 +170,11 @@ export class AppStore {
       }
     }
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    if (sorted.length >= 2) return [sorted[0][0], sorted[1][0]];
+    if (sorted.length >= 2) {
+      const a = sorted[0][0];
+      const b = sorted[1][0];
+      return a < b ? [a, b] : [b, a];
+    }
     if (sorted.length === 1) return [sorted[0][0], this.bg];
     return [this.fg, this.bg];
   }
