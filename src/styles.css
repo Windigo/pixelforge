@@ -167,10 +167,10 @@ select { font: inherit; background: #273348; color: var(--ink); border: 1px soli
 }
 .tip-mark:hover, .tip-mark:focus { background: var(--cyan); color: #08201f; border-color: #9ff; }
 .tip-bubble {
-  position: absolute; bottom: 150%; right: 0;
+  position: absolute;
   width: 220px; padding: 9px 11px; background: #1b2637; border: 1px solid #526078;
   border-radius: 5px; color: var(--ink); font-size: 11px; line-height: 1.45; font-weight: normal;
-  text-align: left; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); z-index: 60;
+  text-align: left; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); z-index: 1000;
 }
 .tip-bubble[hidden] { display: none; }
 
