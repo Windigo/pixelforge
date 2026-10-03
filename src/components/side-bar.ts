@@ -22,7 +22,6 @@ export class SideBar extends LitElement {
         <pf-palette-controls></pf-palette-controls>
         <pf-resolution-controls></pf-resolution-controls>
         <pf-tools-bar></pf-tools-bar>
-        <pf-palette-swatches></pf-palette-swatches>
       </aside>
     `;
   }
