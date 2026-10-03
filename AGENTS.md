@@ -6,7 +6,7 @@
 ## Wat dit project is
 
 PixelForge is een **browsergebaseerde pixel-art converter** naar retro-doelsystemen.
-Je laadt een PNG en exporteert het als:
+Je laadt een **PNG, IFF (ILBM), SCREEN 5 of SCREEN 2** en exporteert het als:
 
 - **Amiga ILBM/IFF** — 1–8 bitplanes, geïndexeerd palet
 - **MSX SCREEN 5** — 256×212, 16 kleuren, 4 bits/pixel (BSAVE-bitmap + MSX2-palet)
@@ -43,6 +43,7 @@ src/
   core/                      pure logica, GEEN DOM (unit-testbaar)
     types.ts  color.ts  resample.ts  msx.ts  convert.ts
   export/exporters.ts        ILBM / PNG / SC5 / SC2 export
+  import/importers.ts        ILBM / SC5 / SC2 import (detectFormat + decodeImage)
   state/store.ts             reactieve singleton store + StoreController
   components/                Lit Web Components (light DOM)
     app-shell  menu-bar  side-bar  preview-pane
