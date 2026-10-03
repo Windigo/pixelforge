@@ -216,9 +216,13 @@ export class PreviewPane extends LitElement {
   }
 
   private onWheel(e: WheelEvent): void {
-    if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    this.changeZoom(e.deltaY < 0 ? 0.5 : -0.5);
+    if (e.ctrlKey || e.metaKey) {
+      this.changeZoom(e.deltaY < 0 ? 0.5 : -0.5);
+      return;
+    }
+    const v = store.views[this.kind];
+    store.setView(this.kind, { zoom: v.zoom, x: v.x - e.deltaX, y: v.y - e.deltaY });
   }
 
   private point(e: PointerEvent, canvas: HTMLCanvasElement): { x: number; y: number } {
