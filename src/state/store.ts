@@ -32,6 +32,7 @@ export class AppStore {
   bg = 1;
   showGrid = false;
   brushSize = 1;
+  brushShape: 'round' | 'square' = 'round';
   ditherPattern: DitherPattern = 'checkerboard';
   ditherLevel = 8;
   ditherManual = false;
@@ -108,6 +109,7 @@ export class AppStore {
   setBg(i: number): void { this.bg = i; this.notify(); }
   setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
   setBrushSize(n: number): void { this.brushSize = n; this.notify(); }
+  setBrushShape(s: 'round' | 'square'): void { this.brushShape = s; this.notify(); }
   setDitherPattern(p: DitherPattern): void { this.ditherPattern = p; this.notify(); }
   setDitherLevel(n: number): void { this.ditherLevel = n; this.notify(); }
   setDitherManual(v: boolean): void { this.ditherManual = v; this.notify(); }
@@ -137,9 +139,10 @@ export class AppStore {
     this.notify();
   }
 
-  stamp(cx: number, cy: number, radius: number, getColor: (x: number, y: number) => number, square = false): void {
+  stamp(cx: number, cy: number, radius: number, getColor: (x: number, y: number) => number): void {
     if (!this.result) return;
     const R = this.result;
+    const square = this.brushShape === 'square';
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
         if (!square && dx * dx + dy * dy > radius * radius) continue;

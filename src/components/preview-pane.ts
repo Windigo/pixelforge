@@ -209,7 +209,7 @@ export class PreviewPane extends LitElement {
     const ca = palette[a] ?? fg;
     const cb = palette[b] ?? bg;
     const inside = (x: number, y: number): boolean => x * x + y * y <= r * r;
-    const square = store.mode === 'dither';
+    const square = store.brushShape === 'square';
     for (let dy = 0; dy < size; dy++) {
       const ly = dy - r;
       for (let dx = 0; dx < size; dx++) {
@@ -351,7 +351,7 @@ export class PreviewPane extends LitElement {
       store.stamp(x, y, r, () => 0);
     } else if (store.mode === 'dither') {
       const [a, b] = store.ditherManual ? [store.fg, store.bg] : store.sampleColors(x, y, r);
-      store.stamp(x, y, r, (px, py) => (ditherValue(store.ditherPattern, px, py) < store.ditherLevel ? a : b), true);
+      store.stamp(x, y, r, (px, py) => (ditherValue(store.ditherPattern, px, py) < store.ditherLevel ? a : b));
     } else {
       const idx = button === 2 ? store.bg : store.fg;
       store.stamp(x, y, r, () => idx);

@@ -94,6 +94,13 @@ export class ToolsBar extends LitElement {
           <b>${store.brushSize * 2 + 1}px</b>
         </div>
         <input type="range" min="0" max="8" .value=${String(store.brushSize)} @input=${(e: Event) => store.setBrushSize(Number((e.target as HTMLInputElement).value))} />
+        <div class="row">
+          <label>SHAPE</label>
+          <select .value=${store.brushShape} @change=${(e: Event) => store.setBrushShape((e.target as HTMLSelectElement).value as 'round' | 'square')}>
+            <option value="round">Round</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
         ${store.mode === 'dither'
           ? html`
               <div class="section-inner">
