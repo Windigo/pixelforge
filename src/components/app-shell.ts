@@ -23,10 +23,16 @@ export class AppShell extends LitElement {
   private onKeyDown = (e: KeyboardEvent): void => {
     const el = e.target as HTMLElement | null;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      store.undo();
+      return;
+    }
     const k = e.key.toLowerCase();
     if (k === 'b') store.setMode('pencil');
     else if (k === 'e') store.setMode('eraser');
     else if (k === 'i') store.setMode('picker');
+    else if (k === 'h') store.setMode('pan');
   };
 
   render() {

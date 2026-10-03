@@ -6,8 +6,7 @@ const MODES: { id: ToolMode; label: string }[] = [
   { id: 'pencil', label: '✎ Potlood (B)' },
   { id: 'eraser', label: '⌫ Gum (E)' },
   { id: 'picker', label: '💧 Pipet (I)' },
-  { id: 'zoom', label: '⌕ Zoom' },
-  { id: 'pan', label: '✥ Verslepen' },
+  { id: 'pan', label: '✥ Verslepen (H)' },
 ];
 
 export class ToolsBar extends LitElement {
@@ -33,11 +32,12 @@ export class ToolsBar extends LitElement {
             `,
           )}
         </div>
+        <button class="undo-btn" ?disabled=${store.undoStack.length === 0} @click=${() => store.undo()}>↶ Ongedaan (Ctrl+Z)</button>
         <label class="check">
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
-        <p class="hint">Potlood: links = voorgrond, rechts = achtergrond · Gum: transparant · Zoom: klik · Verslepen: sleep.</p>
+        <p class="hint">Potlood: links = voorgrond, rechts = achtergrond · Gum: transparant · Pipet: kleur pakken · Verslepen: sleep.</p>
       </div>
     `;
   }

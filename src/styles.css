@@ -92,6 +92,8 @@ input[type='range']:disabled {
 
 .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .tool { padding: 8px; text-align: left; }
+.undo-btn { width: 100%; margin-top: 10px; padding: 8px; }
+.undo-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
 .sizes { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }

@@ -202,8 +202,7 @@ export class PreviewPane extends LitElement {
   private applyToolCursor(): void {
     const canvas = this.canvas();
     if (canvas) {
-      canvas.style.cursor =
-        store.mode === 'zoom' ? 'zoom-in' : store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
+      canvas.style.cursor = store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
     }
     if (this.lastPointer) this.updateCursor(this.lastPointer);
     else this.hideCursor();
@@ -238,10 +237,6 @@ export class PreviewPane extends LitElement {
     const canvas = this.canvas();
     if (!canvas || !canvas.width) return;
     const pan = e.button === 1 || e.metaKey || e.ctrlKey || store.mode === 'pan';
-    if (store.mode === 'zoom' && e.button === 0) {
-      this.changeZoom(0.5);
-      return;
-    }
     e.preventDefault();
     canvas.setPointerCapture?.(e.pointerId);
     if (pan) {
@@ -265,6 +260,7 @@ export class PreviewPane extends LitElement {
     if (e.button !== 0 && e.button !== 2) return;
     const p = this.toIff(this.point(e, canvas));
     this.drag = { type: 'draw', id: e.pointerId, x: e.clientX, y: e.clientY, px: 0, py: 0, button: e.button, last: p };
+    store.beginUndo();
     this.paintAt(p.x, p.y, e.button);
   }
 
@@ -290,7 +286,7 @@ export class PreviewPane extends LitElement {
     this.drag = null;
     const canvas = this.canvas();
     if (canvas) {
-      canvas.style.cursor = store.mode === 'zoom' ? 'zoom-in' : store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
+      canvas.style.cursor = store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
     }
   }
 

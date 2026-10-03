@@ -26,10 +26,11 @@ export class AppStore {
 
   pinned: RGB[] = [];
   selection: Selection | null = null;
-  mode: ToolMode = 'pencil';
+  mode: ToolMode = 'pan';
   fg = 1;
   bg = 1;
   showGrid = false;
+  undoStack: Uint8Array[] = [];
   views: { original: ViewState; output: ViewState } = {
     original: { zoom: 1, x: 0, y: 0 },
     output: { zoom: 1, x: 0, y: 0 },
@@ -123,6 +124,41 @@ export class AppStore {
     }
     ctx.putImageData(px, x, y);
     this.notify();
+  }
+
+  beginUndo(): void {
+    if (!this.result) return;
+    this.undoStack.push(this.result.indexed.slice());
+    if (this.undoStack.length > 100) this.undoStack.shift();
+  }
+
+  undo(): void {
+    if (!this.result || this.undoStack.length === 0) return;
+    const snapshot = this.undoStack.pop()!;
+    this.result.indexed.set(snapshot);
+    this.redrawPreview();
+    this.notify();
+  }
+
+  private redrawPreview(): void {
+    const r = this.result;
+    if (!r) return;
+    const ctx = r.preview.getContext('2d')!;
+    const img = ctx.createImageData(r.width, r.height);
+    for (let i = 0; i < r.indexed.length; i++) {
+      const index = r.indexed[i];
+      const o = i * 4;
+      if (index === 0) {
+        img.data[o + 3] = 0;
+      } else {
+        const c = r.palette[index] ?? [0, 0, 0];
+        img.data[o] = c[0];
+        img.data[o + 1] = c[1];
+        img.data[o + 2] = c[2];
+        img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
   }
   setSelection(s: Selection | null): void { this.selection = s; this.notify(); }
   setView(kind: 'original' | 'output', v: ViewState): void {
