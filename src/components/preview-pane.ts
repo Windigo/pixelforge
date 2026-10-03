@@ -62,6 +62,7 @@ export class PreviewPane extends LitElement {
           @click=${() => this.onClick()}
           @contextmenu=${(e: Event) => e.preventDefault()}
           @pointerleave=${() => this.hideCursor()}
+          @wheel=${(e: WheelEvent) => this.onWheel(e)}
           @dragover=${(e: DragEvent) => this.onDragOver(e)}
           @dragleave=${() => this.onDragLeave()}
           @drop=${(e: DragEvent) => this.onDrop(e)}
@@ -212,6 +213,12 @@ export class PreviewPane extends LitElement {
     const v = store.views[this.kind];
     const zoom = Math.max(0.25, Math.min(32, v.zoom + delta));
     store.setView(this.kind, { ...v, zoom });
+  }
+
+  private onWheel(e: WheelEvent): void {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    this.changeZoom(e.deltaY < 0 ? 0.5 : -0.5);
   }
 
   private point(e: PointerEvent, canvas: HTMLCanvasElement): { x: number; y: number } {
