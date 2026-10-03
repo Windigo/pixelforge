@@ -21,6 +21,7 @@ export class PreviewPane extends LitElement {
   kind: 'original' | 'output' = 'original';
   private drag: Drag | null = null;
   private lastPointer: PointerEvent | null = null;
+  private ditherCvs: HTMLCanvasElement | null = null;
 
   constructor() {
     super();
@@ -172,7 +173,7 @@ export class PreviewPane extends LitElement {
     const canvas = this.canvas();
     const show =
       this.kind === 'output' &&
-      (store.mode === 'pencil' || store.mode === 'eraser') &&
+      (store.mode === 'pencil' || store.mode === 'eraser' || store.mode === 'dither') &&
       !!store.result &&
       !!canvas &&
       !!canvas.width;
@@ -194,10 +195,47 @@ export class PreviewPane extends LitElement {
     cursor.style.height = `${size}px`;
     const palette = store.result?.palette ?? [];
     const c = palette[store.fg] ?? [0, 0, 0];
-    cursor.style.background =
-      store.mode === 'eraser'
-        ? 'conic-gradient(var(--check1) 25%, var(--check2) 0 50%, var(--check1) 0 75%, var(--check2) 0) 0 0 / 100% 100%'
-        : `rgb(${c[0]},${c[1]},${c[2]})`;
+    if (store.mode === 'eraser') {
+      cursor.style.background =
+        'conic-gradient(var(--check1) 25%, var(--check2) 0 50%, var(--check1) 0 75%, var(--check2) 0) 0 0 / 100% 100%';
+    } else if (store.mode === 'dither') {
+      cursor.style.background = `url(${this.ditherPreview(p.x, p.y)}) center / 100% 100% no-repeat`;
+    } else {
+      cursor.style.background = `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+  }
+
+  private ditherPreview(cx: number, cy: number): string {
+    const r = store.brushSize;
+    const size = r * 2 + 1;
+    const [a, b] = store.ditherManual ? [store.fg, store.bg] : store.sampleColors(cx, cy, r);
+    const palette = store.result?.palette ?? [];
+    const ca = palette[a] ?? [0, 0, 0];
+    const cb = palette[b] ?? [0, 0, 0];
+    const cvs = this.ditherCvs ?? (this.ditherCvs = document.createElement('canvas'));
+    cvs.width = size;
+    cvs.height = size;
+    const ctx = cvs.getContext('2d')!;
+    const img = ctx.createImageData(size, size);
+    for (let dy = 0; dy < size; dy++) {
+      const ly = dy - r;
+      for (let dx = 0; dx < size; dx++) {
+        const lx = dx - r;
+        const o = (dy * size + dx) * 4;
+        if (lx * lx + ly * ly > r * r) {
+          img.data[o + 3] = 0;
+          continue;
+        }
+        const useA = ditherValue(store.ditherPattern, cx + lx, cy + ly) < store.ditherLevel;
+        const col = useA ? ca : cb;
+        img.data[o] = col[0];
+        img.data[o + 1] = col[1];
+        img.data[o + 2] = col[2];
+        img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return cvs.toDataURL();
   }
 
   private hideCursor(): void {
