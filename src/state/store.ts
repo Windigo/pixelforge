@@ -29,6 +29,7 @@ export class AppStore {
   mode: ToolMode = 'pencil';
   fg = 1;
   bg = 1;
+  showGrid = false;
   views: { original: ViewState; output: ViewState } = {
     original: { zoom: 1, x: 0, y: 0 },
     output: { zoom: 1, x: 0, y: 0 },
@@ -99,6 +100,7 @@ export class AppStore {
   setMode(m: ToolMode): void { this.mode = m; this.notify(); }
   setFg(i: number): void { this.fg = i; this.notify(); }
   setBg(i: number): void { this.bg = i; this.notify(); }
+  setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
 
   paint(x: number, y: number, index: number): void {
     if (!this.result) return;

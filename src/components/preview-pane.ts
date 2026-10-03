@@ -60,11 +60,13 @@ export class PreviewPane extends LitElement {
           @pointercancel=${(e: PointerEvent) => this.onPointerUp(e)}
           @click=${() => this.onClick()}
           @contextmenu=${(e: Event) => e.preventDefault()}
+          @pointerleave=${() => this.hideCursor()}
           @dragover=${(e: DragEvent) => this.onDragOver(e)}
           @dragleave=${() => this.onDragLeave()}
           @drop=${(e: DragEvent) => this.onDrop(e)}
         >
           <canvas></canvas>
+          <div class="brush-cursor" hidden></div>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
               ? html`LAAD EEN PNG<small>klik of sleep hier een PNG</small>`
@@ -106,6 +108,8 @@ export class PreviewPane extends LitElement {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(srcCanvas, 0, 0);
     this.drawSelection(ctx, canvas.width, canvas.height);
+    this.drawBox(ctx, canvas.width, canvas.height);
+    if (store.showGrid) this.drawGrid(ctx, canvas.width, canvas.height);
     this.applyView(canvas, canvas.width, canvas.height);
   }
 
@@ -129,6 +133,72 @@ export class PreviewPane extends LitElement {
     canvas.style.width = `${w * v.zoom}px`;
     canvas.style.height = `${h * v.zoom}px`;
     canvas.style.transform = `translate(calc(-50% + ${v.x}px), ${v.y}px)`;
+  }
+
+  private drawBox(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const zoom = store.views[this.kind].zoom;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 200, 61, 0.9)';
+    ctx.lineWidth = 1 / zoom;
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+    ctx.restore();
+  }
+
+  private drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const zoom = store.views[this.kind].zoom;
+    if (zoom < 4) return;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.lineWidth = 1 / zoom;
+    ctx.beginPath();
+    for (let x = 1; x < w; x++) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+    }
+    for (let y = 1; y < h; y++) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private updateCursor(e: PointerEvent): void {
+    const cursor = this.querySelector('.brush-cursor') as HTMLElement | null;
+    if (!cursor) return;
+    const canvas = this.canvas();
+    const show =
+      this.kind === 'output' &&
+      (store.mode === 'pencil' || store.mode === 'eraser') &&
+      !!store.result &&
+      !!canvas &&
+      !!canvas.width;
+    if (!show) {
+      cursor.hidden = true;
+      return;
+    }
+    const p = this.point(e, canvas!);
+    const zoom = store.views[this.kind].zoom;
+    const size = Math.max(1, zoom);
+    const wrap = this.querySelector('.canvas-wrap') as HTMLElement;
+    const cr = canvas!.getBoundingClientRect();
+    const wr = wrap.getBoundingClientRect();
+    cursor.hidden = false;
+    cursor.style.left = `${cr.left - wr.left + p.x * zoom}px`;
+    cursor.style.top = `${cr.top - wr.top + p.y * zoom}px`;
+    cursor.style.width = `${size}px`;
+    cursor.style.height = `${size}px`;
+    const palette = store.result?.palette ?? [];
+    const c = palette[store.fg] ?? [0, 0, 0];
+    cursor.style.background =
+      store.mode === 'eraser'
+        ? 'conic-gradient(var(--check1) 25%, var(--check2) 0 50%, var(--check1) 0 75%, var(--check2) 0) 0 0 / 100% 100%'
+        : `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+
+  private hideCursor(): void {
+    const cursor = this.querySelector('.brush-cursor') as HTMLElement | null;
+    if (cursor) cursor.hidden = true;
   }
 
   private changeZoom(delta: number): void {
@@ -180,6 +250,7 @@ export class PreviewPane extends LitElement {
   }
 
   private onPointerMove(e: PointerEvent): void {
+    this.updateCursor(e);
     const d = this.drag;
     if (!d || d.id !== e.pointerId) return;
     const canvas = this.canvas();

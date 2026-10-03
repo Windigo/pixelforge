@@ -32,6 +32,10 @@ export class ToolsBar extends LitElement {
             `,
           )}
         </div>
+        <label class="check">
+          <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
+          GRID
+        </label>
         <p class="hint">Potlood: links = voorgrond, rechts = achtergrond · Gum: transparant · Zoom: klik · Verslepen: sleep.</p>
       </div>
     `;
