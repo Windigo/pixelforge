@@ -82,7 +82,7 @@ export class PreviewPane extends LitElement {
               `}
         </div>
         <div
-          class="canvas-wrap"
+          class=${kind === 'original' ? 'canvas-wrap droppable' : 'canvas-wrap'}
           @pointerdown=${(e: PointerEvent) => this.onPointerDown(e)}
           @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
           @pointerup=${(e: PointerEvent) => this.onPointerUp(e)}
@@ -99,7 +99,7 @@ export class PreviewPane extends LitElement {
           <canvas class="brush-cursor" hidden></canvas>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
-              ? html`LOAD AN IMAGE<small>click or drag an image here</small>`
+              ? html`<button class="load-btn" @click=${() => store.fileInput?.click()}>📂 LOAD AN IMAGE</button><small>or drag & drop an image here</small>`
               : html`WAITING FOR SOURCE<small>indexed preview</small>`}
           </div>
         </div>

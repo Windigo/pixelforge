@@ -190,6 +190,15 @@ pf-preview-pane { display: block; }
 }
 .empty[hidden] { display: none; }
 .empty small { color: var(--muted); font-weight: normal; font-size: 11px; margin-top: 8px; }
+.load-btn {
+  pointer-events: auto;
+  font: inherit; color: var(--ink); background: #273348;
+  border: 1px solid #61708a; cursor: pointer;
+  padding: 10px 18px; font-weight: bold; border-radius: 3px;
+  justify-self: center;
+}
+.load-btn:hover { border-color: var(--yellow); color: #fff; }
+.canvas-wrap.droppable { cursor: pointer; }
 .dropping { outline: 2px dashed var(--yellow); outline-offset: -6px; }
 
 .window-foot {
