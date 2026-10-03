@@ -78,7 +78,9 @@ export class PreviewPane extends LitElement {
             <button title="Weergave herstellen" @click=${() => store.setView(this.kind, { zoom: 1, x: 0, y: 0 })}>↻</button>
           </div>
         </div>
-        ${kind === 'output' ? html`<div class="palette-bar"><pf-palette-swatches></pf-palette-swatches></div>` : ''}
+        <div class="palette-bar">
+          ${kind === 'output' ? html`<pf-palette-swatches></pf-palette-swatches>` : ''}
+        </div>
       </section>
     `;
   }
