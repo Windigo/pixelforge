@@ -22,7 +22,7 @@ export class ResolutionControls extends LitElement {
             <input type="checkbox" .checked=${store.resample} @change=${(e: Event) => store.setResample((e.target as HTMLInputElement).checked)} />
             RESAMPLE
           </label>
-          <pf-tooltip text="Aan: de bron wordt geschaald (via SCHAAL of breedte/hoogte) vóór de conversie. Uit: de bron wordt op eigen formaat gebruikt."></pf-tooltip>
+          <pf-tooltip text="Aan: maakt er echte pixelart van — zet de afbeelding om naar een zelfgekozen aantal pixels (via SCHAAL of breedte/hoogte). Uit: de originele grootte blijft."></pf-tooltip>
         </span>
         <div class="row"><label>SCHAAL</label><b>${store.scale}%</b></div>
         <input type="range" min="1" max="100" .value=${String(store.scale)} @input=${(e: Event) => store.setScale(Number((e.target as HTMLInputElement).value))} />
