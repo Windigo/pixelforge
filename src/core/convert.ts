@@ -40,19 +40,30 @@ function targetDims(o: ConvertOptions): { w: number; h: number } | null {
   return null;
 }
 
+function scaledDims(
+  source: HTMLCanvasElement,
+  o: ConvertOptions,
+): { w: number; h: number } | null {
+  if (!o.resample) return null;
+  const w = Number(o.widthInput) || Math.max(1, Math.round((source.width * o.scale) / 100));
+  const h = Number(o.heightInput) || Math.max(1, Math.round((source.height * o.scale) / 100));
+  return { w: clamp(w, 1, 8192), h: clamp(h, 1, 8192) };
+}
+
 function makeWork(
   source: HTMLCanvasElement,
   o: ConvertOptions,
 ): { canvas: HTMLCanvasElement; width: number; height: number } {
   const td = targetDims(o);
-  if (td) return { canvas: resampleTo(source, td.w, td.h, o.sampling), width: td.w, height: td.h };
-  if (!o.resample) return { canvas: source, width: source.width, height: source.height };
-
-  const w = Number(o.widthInput) || Math.max(1, Math.round((source.width * o.scale) / 100));
-  const h = Number(o.heightInput) || Math.max(1, Math.round((source.height * o.scale) / 100));
-  const cw = clamp(w, 1, 8192);
-  const ch = clamp(h, 1, 8192);
-  return { canvas: resampleTo(source, cw, ch, o.sampling), width: cw, height: ch };
+  if (td) {
+    // Vaste MSX-resolutie: schaal de bron eerst (optioneel), daarna naar de vaste maat.
+    const pre = scaledDims(source, o);
+    const src = pre ? resampleTo(source, pre.w, pre.h, o.sampling) : source;
+    return { canvas: resampleTo(src, td.w, td.h, o.sampling), width: td.w, height: td.h };
+  }
+  const pre = scaledDims(source, o);
+  if (!pre) return { canvas: source, width: source.width, height: source.height };
+  return { canvas: resampleTo(source, pre.w, pre.h, o.sampling), width: pre.w, height: pre.h };
 }
 
 export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertResult {

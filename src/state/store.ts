@@ -63,7 +63,11 @@ export class AppStore {
   setMerge(n: number): void { this.merge = n; this.reconvert(); }
   setDither(v: boolean): void { this.dither = v; this.reconvert(); }
   setResample(v: boolean): void { this.resample = v; this.reconvert(); }
-  setScale(n: number): void { this.scale = n; this.reconvert(); }
+  setScale(n: number): void {
+    this.scale = n;
+    this.resample = true;
+    this.reconvert();
+  }
   setSampling(s: Sampling): void { this.sampling = s; this.reconvert(); }
 
   setSize(axis: 'width' | 'height', value: string): void {
@@ -125,10 +129,22 @@ export class AppStore {
 
   export(): void {
     if (!this.result) return;
-    if (this.target === 'amiga') exportIlbm(this.result, this.selection, this.planes);
-    else if (this.target === 'sc5') exportSc5(this.result);
-    else if (this.target === 'sc2') exportSc2(this.result);
-    else exportPng(this.result, this.selection);
+    const r = this.result;
+    if (this.target === 'amiga') {
+      const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
+      exportIlbm(r, this.selection, this.planes);
+      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px ILBM gedownload.`);
+    } else if (this.target === 'sc5') {
+      exportSc5(r);
+      this.setStatus('EXPORTED', 'SCREEN 5 · 256×212 · bitmap (.sc5) + MSX2-palet (.pal) gedownload.');
+    } else if (this.target === 'sc2') {
+      exportSc2(r);
+      this.setStatus('EXPORTED', 'SCREEN 2 · 256×192 · VRAM-dump (.sc2) + palet (.pal) gedownload.');
+    } else {
+      const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
+      exportPng(r, this.selection);
+      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px pixelart-PNG gedownload.`);
+    }
   }
 
   private reconvert(): void {

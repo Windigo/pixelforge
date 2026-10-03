@@ -13,6 +13,7 @@ export class PaletteControls extends LitElement {
 
   render() {
     const t = store.target;
+    const fixedPalette = t === 'sc2' && store.msx1;
     return html`
       <div class="section">
         <h2>${t === 'amiga' ? 'AMIGA PALET' : 'PALET'}</h2>
@@ -48,14 +49,14 @@ export class PaletteControls extends LitElement {
               `}
 
         <div class="row"><label>KLEUREN SAMENVOEGEN</label><b>${store.merge}</b></div>
-        <input type="range" min="0" max="80" .value=${String(store.merge)} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />
+        <input type="range" min="0" max="80" .value=${String(store.merge)} ?disabled=${fixedPalette} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />
 
         <label class="check">
           <input type="checkbox" .checked=${store.dither} @change=${(e: Event) => store.setDither((e.target as HTMLInputElement).checked)} />
           FLOYD–STEINBERG DITHER
         </label>
 
-        <p class="hint">Klik een paletvak om die kleur vast te zetten.</p>
+        <p class="hint">${fixedPalette ? 'Vast MSX1-palet: kleuren samenvoegen heeft geen effect.' : 'Klik een paletvak om die kleur vast te zetten.'}</p>
       </div>
     `;
   }
