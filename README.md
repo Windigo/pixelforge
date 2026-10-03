@@ -1,12 +1,19 @@
 # PixelForge
 
-Een zelfstandige, browsergebaseerde converter voor pixel-art naar Amiga ILBM/IFF.
+Een zelfstandige, browsergebaseerde converter voor pixel-art naar meerdere
+retro-doelsystemen.
 
 ## Functies
 
-- PNG-invoer en zij-aan-zij origineel/IFF-preview
+- PNG-invoer (sleep in het origineel-paneel, of via de menubalk)
+- Menubalk met Laden, Opslaan en keuze van doelsysteem
 - Beperkt geïndexeerd palet met nearest-colour mapping
-- 1–8 bitplanes en echte ILBM/IFF-export
+- Meerdere doelsystemen: Amiga ILBM/IFF, MSX SCREEN 5, MSX SCREEN 2 en pixelart-PNG
+- Amiga: 1–8 bitplanes en echte ILBM/IFF-export
+- MSX SCREEN 5: 256×212, 16 kleuren (4 bits/pixel), BSAVE-bitmap + MSX2-palet
+- MSX SCREEN 2: 256×192, 16 kleuren, VRAM-dump (patronen/kleur/naamtabel) + palet,
+  met optioneel vast MSX1-palet (TMS9918)
+- Pixelart-PNG: geïndexeerd palet, 2–256 kleuren
 - Selecties met pixelafmetingen
 - Onafhankelijke zoom en pan per preview
 - Resampling met pixelcentrum of dominante kleur

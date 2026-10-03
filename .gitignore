@@ -1,3 +1,6 @@
 # Machine-specific deployment configuration
 nl.mennohoman.pixelforge.plist
 HOSTING_PRIVATE.md
+
+# macOS
+.DS_Store
