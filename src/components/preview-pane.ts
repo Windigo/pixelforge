@@ -307,10 +307,15 @@ export class PreviewPane extends LitElement {
   }
 
   private paintAt(x: number, y: number, button: number): void {
+    const r = store.brushSize;
     if (store.mode === 'eraser') {
-      store.paint(x, y, 0);
+      store.stamp(x, y, r, () => 0);
+    } else if (store.mode === 'dither') {
+      const [a, b] = store.sampleColors(x, y, r);
+      store.stamp(x, y, r, (px, py) => ((px + py) & 1) === 0 ? a : b);
     } else {
-      store.paint(x, y, button === 2 ? store.bg : store.fg);
+      const idx = button === 2 ? store.bg : store.fg;
+      store.stamp(x, y, r, () => idx);
     }
   }
 

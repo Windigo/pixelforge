@@ -21,6 +21,14 @@ const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
     ],
   },
   {
+    id: 'dither',
+    label: 'Dither (D)',
+    paths: [
+      'M3 3h18v18H3z',
+      'M3 9h18M3 15h18M9 3v18M15 3v18',
+    ],
+  },
+  {
     id: 'picker',
     label: 'Eyedropper (I)',
     paths: [
@@ -71,6 +79,11 @@ export class ToolsBar extends LitElement {
             `,
           )}
         </div>
+        <div class="row">
+          <label>SIZE</label>
+          <b>${store.brushSize * 2 + 1}px</b>
+        </div>
+        <input type="range" min="0" max="8" .value=${String(store.brushSize)} @input=${(e: Event) => store.setBrushSize(Number((e.target as HTMLInputElement).value))} />
         <button class="undo-btn" ?disabled=${store.undoStack.length === 0} @click=${() => store.undo()}>↶ Undo (Ctrl+Z)</button>
         <label class="check">
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />

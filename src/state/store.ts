@@ -30,6 +30,7 @@ export class AppStore {
   fg = 1;
   bg = 1;
   showGrid = false;
+  brushSize = 1;
   undoStack: Uint8Array[] = [];
   views: { original: ViewState; output: ViewState } = {
     original: { zoom: 1, x: 0, y: 0 },
@@ -102,28 +103,66 @@ export class AppStore {
   setFg(i: number): void { this.fg = i; this.notify(); }
   setBg(i: number): void { this.bg = i; this.notify(); }
   setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
+  setBrushSize(n: number): void { this.brushSize = n; this.notify(); }
+
+  private writePixel(x: number, y: number, index: number): void {
+    const r = this.result;
+    if (!r) return;
+    r.indexed[y * r.width + x] = index;
+    const ctx = r.preview.getContext('2d')!;
+    const p = ctx.getImageData(x, y, 1, 1);
+    if (index === 0) {
+      p.data[3] = 0;
+    } else {
+      const c = r.palette[index] ?? [0, 0, 0];
+      p.data[0] = c[0];
+      p.data[1] = c[1];
+      p.data[2] = c[2];
+      p.data[3] = 255;
+    }
+    ctx.putImageData(p, x, y);
+  }
 
   paint(x: number, y: number, index: number): void {
     if (!this.result) return;
-    const r = this.result;
-    if (x < 0 || y < 0 || x >= r.width || y >= r.height) return;
-    r.indexed[y * r.width + x] = index;
-    const ctx = r.preview.getContext('2d')!;
-    const px = ctx.getImageData(x, y, 1, 1);
-    if (index === 0) {
-      px.data[0] = 0;
-      px.data[1] = 0;
-      px.data[2] = 0;
-      px.data[3] = 0;
-    } else {
-      const c = r.palette[index] ?? [0, 0, 0];
-      px.data[0] = c[0];
-      px.data[1] = c[1];
-      px.data[2] = c[2];
-      px.data[3] = 255;
-    }
-    ctx.putImageData(px, x, y);
+    if (x < 0 || y < 0 || x >= this.result.width || y >= this.result.height) return;
+    this.writePixel(x, y, index);
     this.notify();
+  }
+
+  stamp(cx: number, cy: number, radius: number, getColor: (x: number, y: number) => number): void {
+    if (!this.result) return;
+    const R = this.result;
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (dx * dx + dy * dy > radius * radius) continue;
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || y < 0 || x >= R.width || y >= R.height) continue;
+        this.writePixel(x, y, getColor(x, y));
+      }
+    }
+    this.notify();
+  }
+
+  sampleColors(cx: number, cy: number, radius: number): [number, number] {
+    if (!this.result) return [this.fg, this.bg];
+    const R = this.result;
+    const counts = new Map<number, number>();
+    for (let dy = -radius - 2; dy <= radius + 2; dy++) {
+      for (let dx = -radius - 2; dx <= radius + 2; dx++) {
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || y < 0 || x >= R.width || y >= R.height) continue;
+        const idx = R.indexed[y * R.width + x];
+        if (idx === 0) continue;
+        counts.set(idx, (counts.get(idx) ?? 0) + 1);
+      }
+    }
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    if (sorted.length >= 2) return [sorted[0][0], sorted[1][0]];
+    if (sorted.length === 1) return [sorted[0][0], this.bg];
+    return [this.fg, this.bg];
   }
 
   beginUndo(): void {

@@ -32,6 +32,7 @@ export class AppShell extends LitElement {
     if (k === 'p') store.setMode('pencil');
     else if (k === 'e') store.setMode('eraser');
     else if (k === 'i') store.setMode('picker');
+    else if (k === 'd') store.setMode('dither');
     else if (k === 'h') store.setMode('pan');
   };
 
