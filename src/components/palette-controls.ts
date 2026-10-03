@@ -39,11 +39,13 @@ export class PaletteControls extends LitElement {
                 <div class="row"><label>KLEUREN</label><b>16 KLEUREN</b></div>
                 ${t === 'sc2'
                   ? html`
-                      <label class="check">
-                        <input type="checkbox" .checked=${store.msx1} @change=${(e: Event) => store.setMsx1((e.target as HTMLInputElement).checked)} />
-                        VAST MSX1-PALET (TMS9918)
+                      <span class="check">
+                        <label>
+                          <input type="checkbox" .checked=${store.msx1} @change=${(e: Event) => store.setMsx1((e.target as HTMLInputElement).checked)} />
+                          VAST MSX1-PALET (TMS9918)
+                        </label>
                         <pf-tooltip text="Standaard aan: de 16 vaste MSX1-kleuren (TMS9918). Zet dit uit als je voor MSX2 maakt — dan worden de 16 kleuren automatisch op jouw afbeelding afgestemd (betere kleurnauwkeurigheid)."></pf-tooltip>
-                      </label>
+                      </span>
                     `
                   : ''}
                 <p class="hint">${t === 'sc5' ? 'SCREEN 5 · 256×212 · 16 kleuren (4 bits/pixel)' : 'SCREEN 2 · 256×192 · 16 kleuren · max 2 kleuren per 8×1 regel'}</p>

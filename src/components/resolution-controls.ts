@@ -17,11 +17,13 @@ export class ResolutionControls extends LitElement {
       <div class="section">
         <h2>RESOLUTIE</h2>
 
-        <label class="check">
-          <input type="checkbox" .checked=${store.resample} @change=${(e: Event) => store.setResample((e.target as HTMLInputElement).checked)} />
-          RESAMPLE
+        <span class="check">
+          <label>
+            <input type="checkbox" .checked=${store.resample} @change=${(e: Event) => store.setResample((e.target as HTMLInputElement).checked)} />
+            RESAMPLE
+          </label>
           <pf-tooltip text="Aan: de bron wordt geschaald (via SCHAAL of breedte/hoogte) vóór de conversie. Uit: de bron wordt op eigen formaat gebruikt."></pf-tooltip>
-        </label>
+        </span>
         <div class="row"><label>SCHAAL</label><b>${store.scale}%</b></div>
         <input type="range" min="1" max="100" .value=${String(store.scale)} @input=${(e: Event) => store.setScale(Number((e.target as HTMLInputElement).value))} />
         <div class="sizes">
