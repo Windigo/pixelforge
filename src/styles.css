@@ -68,7 +68,10 @@ aside {
 }
 
 h2 { font-size: 12px; margin: 0 0 9px; color: var(--cyan); letter-spacing: 0.5px; }
+h3 { font-size: 11px; margin: 0 0 6px; color: var(--yellow); letter-spacing: 0.5px; }
 .section { border-top: 1px solid #43516a; padding: 16px 3px 0; margin-top: 16px; }
+.section-inner { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #43516a; }
+.section-inner select { width: 100%; }
 
 input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .hint { font-size: 10px; color: var(--muted); margin: 9px 0 0; }

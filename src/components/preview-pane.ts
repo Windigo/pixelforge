@@ -1,4 +1,5 @@
 import { LitElement, html } from 'lit';
+import { ditherValue } from '../core/dither';
 import { store, StoreController } from '../state/store';
 
 type Drag = {
@@ -312,8 +313,8 @@ export class PreviewPane extends LitElement {
     if (store.mode === 'eraser') {
       store.stamp(x, y, r, () => 0);
     } else if (store.mode === 'dither') {
-      const [a, b] = store.sampleColors(x, y, r);
-      store.stamp(x, y, r, (px, py) => ((px + py) & 1) === 0 ? a : b);
+      const [a, b] = store.ditherManual ? [store.fg, store.bg] : store.sampleColors(x, y, r);
+      store.stamp(x, y, r, (px, py) => (ditherValue(store.ditherPattern, px, py) < store.ditherLevel ? a : b));
     } else {
       const idx = button === 2 ? store.bg : store.fg;
       store.stamp(x, y, r, () => idx);

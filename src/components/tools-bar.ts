@@ -1,4 +1,5 @@
 import { LitElement, html, svg } from 'lit';
+import type { DitherPattern } from '../core/dither';
 import { store, StoreController } from '../state/store';
 import type { ToolMode } from '../core/types';
 
@@ -57,6 +58,13 @@ const toolIcon = (paths: string[]) => svg`
   </svg>
 `;
 
+const DITHER_PATTERNS: { id: DitherPattern; label: string }[] = [
+  { id: 'checkerboard', label: 'Checkerboard' },
+  { id: 'bayer', label: 'Bayer' },
+  { id: 'horizontal', label: 'Horizontal' },
+  { id: 'diagonal', label: 'Diagonal' },
+];
+
 export class ToolsBar extends LitElement {
   constructor() {
     super();
@@ -86,6 +94,29 @@ export class ToolsBar extends LitElement {
           <b>${store.brushSize * 2 + 1}px</b>
         </div>
         <input type="range" min="0" max="8" .value=${String(store.brushSize)} @input=${(e: Event) => store.setBrushSize(Number((e.target as HTMLInputElement).value))} />
+        ${store.mode === 'dither'
+          ? html`
+              <div class="section-inner">
+                <h3>DITHER</h3>
+                <div class="row">
+                  <label>PATTERN</label>
+                  <select .value=${store.ditherPattern} @change=${(e: Event) => store.setDitherPattern((e.target as HTMLSelectElement).value as DitherPattern)}>
+                    ${DITHER_PATTERNS.map((p) => html`<option value=${p.id}>${p.label}</option>`)}
+                  </select>
+                </div>
+                <div class="row">
+                  <label>AMOUNT</label>
+                  <b>${Math.round((store.ditherLevel / 16) * 100)}%</b>
+                </div>
+                <input type="range" min="0" max="16" .value=${String(store.ditherLevel)} @input=${(e: Event) => store.setDitherLevel(Number((e.target as HTMLInputElement).value))} />
+                <label class="check">
+                  <input type="checkbox" .checked=${store.ditherManual} @change=${(e: Event) => store.setDitherManual((e.target as HTMLInputElement).checked)} />
+                  MANUAL COLOURS (FG + BG)
+                </label>
+                <p class="hint">Auto: dithers the two colours under the cursor. Manual: blends foreground + background — paint a shadow/light side without an existing edge.</p>
+              </div>
+            `
+          : ''}
         <button class="undo-btn" ?disabled=${store.undoStack.length === 0} @click=${() => store.undo()}>↶ Undo (Ctrl+Z)</button>
         <label class="check">
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />

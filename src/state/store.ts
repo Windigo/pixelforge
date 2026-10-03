@@ -2,6 +2,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { rgbDist } from '../core/color';
 import { convert } from '../core/convert';
+import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
 import { exportIlbm, exportPng, exportSc2, exportSc5 } from '../export/exporters';
@@ -31,6 +32,9 @@ export class AppStore {
   bg = 1;
   showGrid = false;
   brushSize = 1;
+  ditherPattern: DitherPattern = 'checkerboard';
+  ditherLevel = 8;
+  ditherManual = false;
   undoStack: Uint8Array[] = [];
   views: { original: ViewState; output: ViewState } = {
     original: { zoom: 1, x: 0, y: 0 },
@@ -104,6 +108,9 @@ export class AppStore {
   setBg(i: number): void { this.bg = i; this.notify(); }
   setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
   setBrushSize(n: number): void { this.brushSize = n; this.notify(); }
+  setDitherPattern(p: DitherPattern): void { this.ditherPattern = p; this.notify(); }
+  setDitherLevel(n: number): void { this.ditherLevel = n; this.notify(); }
+  setDitherManual(v: boolean): void { this.ditherManual = v; this.notify(); }
 
   private writePixel(x: number, y: number, index: number): void {
     const r = this.result;
