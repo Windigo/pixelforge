@@ -1,0 +1,10 @@
+import './styles.css';
+import './components/app-shell';
+import './components/menu-bar';
+import './components/side-bar';
+import './components/status-bar';
+import './components/palette-controls';
+import './components/resolution-controls';
+import './components/tools-bar';
+import './components/palette-swatches';
+import './components/preview-pane';

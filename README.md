@@ -18,22 +18,25 @@ retro-doelsystemen.
 - Onafhankelijke zoom en pan per preview
 - Resampling met pixelcentrum of dominante kleur
 
-## Lokaal gebruiken
+## Ontwikkelen
 
-Open `dist/index.html` rechtstreeks in een moderne browser. Je kunt ook een
-lokale statische server gebruiken:
+TypeScript + Lit 3 (Web Components) gebundeld met Vite.
 
 ```bash
-python3 -m http.server 8088 --directory dist
+npm install      # eenmalig
+npm run dev      # dev-server met hot reload → http://localhost:5173
+npm run build    # productie-bundel naar dist/
+npm run typecheck
 ```
 
-Open daarna `http://localhost:8088`.
+De app is opgebouwd uit losse componenten in `src/components/` (menubalk,
+zijmenu, previews, palet, resolutie, tools), met pure conversie-/exportlogica in
+`src/core/` en `src/export/` en een centrale reactieve store in `src/state/store.ts`.
 
 ## Deploy
 
-`deploy.sh` is een optioneel voorbeeld voor een eigen lokale statische
-webserver. Pas de doelmap aan via de omgevingsvariabele
-`PIXELFORGE_PUBLIC_DIR`:
+`deploy.sh` bouwt de bundel en kopieert de volledige `dist/` naar de publieke map.
+Pas de doelmap aan via de omgevingsvariabele `PIXELFORGE_PUBLIC_DIR`:
 
 ```bash
 PIXELFORGE_PUBLIC_DIR=/pad/naar/publieke/map ./deploy.sh
