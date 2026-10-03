@@ -33,12 +33,12 @@ export class ToolsBar extends LitElement {
             `,
           )}
         </div>
-        <button class="undo-btn" ?disabled=${store.undoStack.length === 0} @click=${() => store.undo()}>↶ Ongedaan (Ctrl+Z)</button>
+        <button class="undo-btn" ?disabled=${store.undoStack.length === 0} @click=${() => store.undo()}>↶ Undo (Ctrl+Z)</button>
         <label class="check">
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
-        <p class="hint">Brush: links = voorgrond, rechts = achtergrond · Eraser: transparant · Eyedropper: kleur pakken · Hand: sleep.</p>
+        <p class="hint">Brush: left = foreground, right = background · Eraser: transparent · Eyedropper: pick colour · Hand: pan.</p>
       </div>
     `;
   }

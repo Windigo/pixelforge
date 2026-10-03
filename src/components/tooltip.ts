@@ -23,7 +23,7 @@ export class Tooltip extends LitElement {
         <button
           type="button"
           class="tip-mark"
-          aria-label="Meer informatie"
+          aria-label="More information"
           @mouseenter=${() => this.show()}
           @mouseleave=${() => this.hide()}
           @focus=${() => this.show()}

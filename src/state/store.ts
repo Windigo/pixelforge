@@ -35,7 +35,7 @@ export class AppStore {
     original: { zoom: 1, x: 0, y: 0 },
     output: { zoom: 1, x: 0, y: 0 },
   };
-  status = { head: 'WACHT OP BRON', text: 'Laad een PNG om te beginnen.' };
+  status = { head: 'WAITING FOR SOURCE', text: 'Load a PNG to begin.' };
 
   fileInput: HTMLInputElement | null = null;
 
@@ -59,7 +59,7 @@ export class AppStore {
     return { amiga: 'ILBM', sc5: 'SCREEN 5', sc2: 'SCREEN 2', png: 'PNG' }[this.target];
   }
 
-  // ── instellingen (triggeren reconversie) ──────────────
+  // ── settings (trigger reconversion) ───────────────────
   setTarget(t: Target): void { this.target = t; this.reconvert(); }
   setMsx1(v: boolean): void { this.msx1 = v; this.reconvert(); }
   setPlanes(n: number): void { this.planes = n; this.reconvert(); }
@@ -97,7 +97,7 @@ export class AppStore {
     return this.pinned.some((p) => rgbDist(p, c) < 2);
   }
 
-  // ── view/interactie (geen reconversie) ─────────────────
+  // ── view/interaction (no reconversion) ─────────────────
   setMode(m: ToolMode): void { this.mode = m; this.notify(); }
   setFg(i: number): void { this.fg = i; this.notify(); }
   setBg(i: number): void { this.bg = i; this.notify(); }
@@ -166,15 +166,15 @@ export class AppStore {
     this.notify();
   }
 
-  // ── laden & exporteren ─────────────────────────────────
+  // ── load & export ─────────────────────────────────────
   async loadFile(file: File): Promise<void> {
-    this.setStatus('LADEN', `${file.name} wordt ingelezen…`);
+    this.setStatus('LOADING', `${file.name} is being read…`);
     const url = URL.createObjectURL(file);
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const im = new Image();
         im.onload = () => resolve(im);
-        im.onerror = () => reject(new Error('De afbeelding kon niet worden gedecodeerd.'));
+        im.onerror = () => reject(new Error('The image could not be decoded.'));
         im.src = url;
       });
       const c = document.createElement('canvas');
@@ -186,7 +186,7 @@ export class AppStore {
       this.selection = null;
       this.reconvert();
     } catch (e) {
-      this.setStatus('LAADFOUT', e instanceof Error ? e.message : 'Er ging iets mis.');
+      this.setStatus('LOAD ERROR', e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -198,17 +198,17 @@ export class AppStore {
     if (this.target === 'amiga') {
       const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
       exportIlbm(r, this.selection, this.planes);
-      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px ILBM gedownload.`);
+      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px ILBM downloaded.`);
     } else if (this.target === 'sc5') {
       exportSc5(r);
-      this.setStatus('EXPORTED', `SCREEN 5 · ${r.width}×${r.height}px · .sc5 (256×212) + .pal gedownload.`);
+      this.setStatus('EXPORTED', `SCREEN 5 · ${r.width}×${r.height}px · .sc5 (256×212) + .pal downloaded.`);
     } else if (this.target === 'sc2') {
       exportSc2(r);
-      this.setStatus('EXPORTED', `SCREEN 2 · ${r.width}×${r.height}px · .sc2 (256×192) + .pal gedownload.`);
+      this.setStatus('EXPORTED', `SCREEN 2 · ${r.width}×${r.height}px · .sc2 (256×192) + .pal downloaded.`);
     } else {
       const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
       exportPng(r, this.selection);
-      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px pixelart-PNG gedownload.`);
+      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px pixelart-PNG downloaded.`);
     }
   }
 
@@ -235,18 +235,18 @@ export class AppStore {
       this.selection = null;
       this.setStatus(
         'CONVERTED',
-        `${this.result.width}×${this.result.height}px · ${this.result.palette.length} kleuren · klaar voor ${this.targetLabel()}-export.`,
+        `${this.result.width}×${this.result.height}px · ${this.result.palette.length} colours · ready for ${this.targetLabel()} export.`,
       );
     } catch (e) {
       console.error(e);
-      this.setStatus('CONVERSIEFOUT', e instanceof Error ? e.message : 'Er ging iets mis tijdens het omzetten.');
+      this.setStatus('CONVERSION ERROR', e instanceof Error ? e.message : 'Something went wrong during conversion.');
     }
   }
 }
 
 export const store = new AppStore();
 
-/** ReactiveController die een Lit-component opnieuw rendert bij elke store-wijziging. */
+/** ReactiveController that re-renders a Lit component on every store change. */
 export class StoreController implements ReactiveController {
   host: ReactiveControllerHost;
   private unsub: (() => void) | null = null;

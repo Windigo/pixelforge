@@ -16,11 +16,11 @@ export class PaletteControls extends LitElement {
     const fixedPalette = t === 'sc2' && store.msx1;
     return html`
       <div class="section">
-        <h2>${t === 'amiga' ? 'AMIGA PALET' : 'PALET'}</h2>
+        <h2>${t === 'amiga' ? 'AMIGA PALETTE' : 'PALETTE'}</h2>
 
         ${t === 'amiga'
           ? html`
-              <div class="row"><label>BITPLANES</label><b>${store.planes} BITPLANES · ${(1 << store.planes) - 1} KLEUREN + TRANSPARANT</b></div>
+              <div class="row"><label>BITPLANES</label><b>${store.planes} BITPLANES · ${(1 << store.planes) - 1} COLOURS + TRANSPARENT</b></div>
               <input type="range" min="1" max="8" .value=${String(store.planes)} @input=${(e: Event) => store.setPlanes(Number((e.target as HTMLInputElement).value))} />
               <div class="bits">
                 ${[1, 2, 3, 4, 5, 6, 7, 8].map(
@@ -32,27 +32,27 @@ export class PaletteControls extends LitElement {
             `
           : t === 'png'
             ? html`
-                <div class="row"><label>AANTAL KLEUREN</label><b>${store.colors - 1} KLEUREN + TRANSPARANT</b></div>
+                <div class="row"><label>COLOUR COUNT</label><b>${store.colors - 1} COLOURS + TRANSPARENT</b></div>
                 <input type="range" min="2" max="256" .value=${String(store.colors)} @input=${(e: Event) => store.setColors(Number((e.target as HTMLInputElement).value))} />
               `
             : html`
-                <div class="row"><label>KLEUREN</label><b>15 KLEUREN + TRANSPARANT</b></div>
+                <div class="row"><label>COLOURS</label><b>15 COLOURS + TRANSPARENT</b></div>
                 ${t === 'sc2'
                   ? html`
                       <span class="check">
                         <label>
                           <input type="checkbox" .checked=${store.msx1} @change=${(e: Event) => store.setMsx1((e.target as HTMLInputElement).checked)} />
-                          VAST MSX1-PALET (TMS9918)
+                          FIXED MSX1 PALETTE (TMS9918)
                         </label>
-                        <pf-tooltip text="Standaard aan: de 16 vaste MSX1-kleuren (TMS9918). Zet dit uit als je voor MSX2 maakt — dan worden de 16 kleuren automatisch op jouw afbeelding afgestemd (betere kleurnauwkeurigheid)."></pf-tooltip>
+                        <pf-tooltip text="Default on: the 16 fixed MSX1 colours (TMS9918). Turn this off for MSX2 — then the 16 colours are automatically matched to your image (better colour accuracy)."></pf-tooltip>
                       </span>
                     `
                   : ''}
-                <p class="hint">${t === 'sc5' ? 'SCREEN 5 · 256×212 · 16 kleuren (4 bits/pixel)' : 'SCREEN 2 · 256×192 · 16 kleuren · max 2 kleuren per 8×1 regel'}</p>
+                <p class="hint">${t === 'sc5' ? 'SCREEN 5 · 256×212 · 16 colours (4 bits/pixel)' : 'SCREEN 2 · 256×192 · 16 colours · max 2 colours per 8×1 row'}</p>
               `}
 
         <div class="row">
-          <label>KLEUREN SAMENVOEGEN${fixedPalette ? html` <pf-tooltip text="Uitgeschakeld: bij een vast MSX1-palet liggen de 16 kleuren vast, dus er valt niets samen te voegen. Zet 'VAST MSX1-PALET' uit om dit te activeren."></pf-tooltip>` : ''}</label>
+          <label>MERGE COLOURS${fixedPalette ? html` <pf-tooltip text="Disabled: with a fixed MSX1 palette the 16 colours are fixed, so there is nothing to merge. Turn 'FIXED MSX1 PALETTE' off to enable this."></pf-tooltip>` : ''}</label>
           <b>${store.merge}</b>
         </div>
         <input type="range" min="0" max="80" .value=${String(store.merge)} ?disabled=${fixedPalette} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />
@@ -62,7 +62,7 @@ export class PaletteControls extends LitElement {
           FLOYD–STEINBERG DITHER
         </label>
 
-        <p class="hint">Klik een paletvak om die kleur vast te zetten.</p>
+        <p class="hint">Click a palette swatch to pin that colour.</p>
       </div>
     `;
   }

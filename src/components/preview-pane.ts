@@ -43,7 +43,7 @@ export class PreviewPane extends LitElement {
     const kind = this.kind;
     const srcCanvas = kind === 'original' ? store.source : (store.result?.preview ?? null);
     const empty = !srcCanvas;
-    const title = kind === 'original' ? 'ORIGINEEL' : `${store.targetLabel()} PREVIEW`;
+    const title = kind === 'original' ? 'ORIGINAL' : `${store.targetLabel()} PREVIEW`;
     const tag = kind === 'original' ? 'PNG' : store.targetLabel();
     const meta =
       kind === 'original'
@@ -51,9 +51,9 @@ export class PreviewPane extends LitElement {
           ? `PNG · ${store.source.width} × ${store.source.height}`
           : '—'
         : store.result
-          ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${store.result.palette.length} KL`
+          ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${store.result.palette.length} CL`
           : '—';
-    const selText = store.selection ? `SELECTIE: ${store.selection.w} × ${store.selection.h} PX` : 'SELECTIE: —';
+    const selText = store.selection ? `SELECTION: ${store.selection.w} × ${store.selection.h} PX` : 'SELECTION: —';
 
     return html`
       <section class="window">
@@ -76,17 +76,17 @@ export class PreviewPane extends LitElement {
           <div class="brush-cursor" hidden></div>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
-              ? html`LAAD EEN PNG<small>klik of sleep hier een PNG</small>`
-              : html`WACHT OP BRON<small>geïndexeerde preview</small>`}
+              ? html`LOAD A PNG<small>click or drag a PNG here</small>`
+              : html`WAITING FOR SOURCE<small>indexed preview</small>`}
           </div>
         </div>
         <div class="window-foot">
           <span class="foot-meta">${meta}</span>
           <span class="selection-size">${selText}</span>
           <div class="nav">
-            <button title="Uitzoomen" @click=${() => this.changeZoom(-0.5)}>−</button>
-            <button title="Inzoomen" @click=${() => this.changeZoom(0.5)}>+</button>
-            <button title="Weergave herstellen" @click=${() => store.setView(this.kind, { zoom: 1, x: 0, y: 0 })}>↻</button>
+            <button title="Zoom out" @click=${() => this.changeZoom(-0.5)}>−</button>
+            <button title="Zoom in" @click=${() => this.changeZoom(0.5)}>+</button>
+            <button title="Reset view" @click=${() => store.setView(this.kind, { zoom: 1, x: 0, y: 0 })}>↻</button>
           </div>
         </div>
         <div class="palette-bar">

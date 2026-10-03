@@ -1,7 +1,7 @@
 import type { RGB } from './types';
 
 /**
- * Vaste TMS9918-palet (MSX1 SCREEN 2). Index 0 = transparant/zwart.
+ * Fixed TMS9918 palette (MSX1 SCREEN 2). Index 0 = transparent/black.
  */
 export const MSX1_PALETTE: RGB[] = [
   [0, 0, 0],
@@ -23,7 +23,7 @@ export const MSX1_PALETTE: RGB[] = [
 ];
 
 /**
- * MSX2 VDP-paletformaat: 16 × 2 bytes (3-bit RGB).
+ * MSX2 VDP palette format: 16 × 2 bytes (3-bit RGB).
  */
 export function msxPaletteBytes(palette: RGB[]): Uint8Array {
   const out = new Uint8Array(32);

@@ -32,7 +32,7 @@ function chunk(id: string, data: Uint8Array): Uint8Array[] {
   return [bytes(id), u32(data.length), data, pad];
 }
 
-/** BSAVE-header (0xFE) voor MSX-binaire bestanden. */
+/** BSAVE header (0xFE) for MSX binary files. */
 function bsave(data: Uint8Array, start: number, run: number): Uint8Array {
   const end = start + data.length - 1;
   const out = new Uint8Array(7 + data.length);

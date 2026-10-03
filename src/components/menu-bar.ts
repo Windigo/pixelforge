@@ -23,9 +23,9 @@ export class MenuBar extends LitElement {
     return html`
       <header class="top">
         <div class="brand">PIXEL<b>FORGE</b></div>
-        <button class="mbtn" title="PNG laden" @click=${() => store.fileInput?.click()}>📂 LADEN</button>
-        <button class="mbtn primary" ?disabled=${!store.result} title="Exporteren naar huidige doel" @click=${() => store.export()}>
-          💾 OPSLAAN (${store.targetLabel()})
+        <button class="mbtn" title="Load PNG" @click=${() => store.fileInput?.click()}>📂 LOAD</button>
+        <button class="mbtn primary" ?disabled=${!store.result} title="Export to current target" @click=${() => store.export()}>
+          💾 SAVE (${store.targetLabel()})
         </button>
         <div class="formats">
           ${TARGETS.map(
