@@ -127,7 +127,7 @@ export function exportSc5(r: ConvertResult): void {
   downloadBytes(msxPaletteBytes(r.palette), 'pixelforge.pal');
 }
 
-export function exportSc2(r: ConvertResult): void {
+export function exportSc2(r: ConvertResult, msx1: boolean): void {
   const at = (y: number, x: number): number =>
     y < r.height && x < r.width ? r.indexed[y * r.width + x] : 0;
 
@@ -187,6 +187,6 @@ export function exportSc2(r: ConvertResult): void {
   vram.set(colorTable, 0x2000);
 
   downloadBytes(bsave(vram, 0x0000, 0x0000), 'pixelforge.sc2');
-  downloadBytes(msxPaletteBytes(r.palette), 'pixelforge.pal');
+  if (!msx1) downloadBytes(msxPaletteBytes(r.palette), 'pixelforge.pal');
   if (overflow) console.warn('SCREEN 2: meer dan 256 unieke patronen');
 }

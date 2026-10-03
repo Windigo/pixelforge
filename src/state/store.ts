@@ -271,8 +271,8 @@ export class AppStore {
       exportSc5(r);
       this.setStatus('EXPORTED', `SCREEN 5 · ${r.width}×${r.height}px · .sc5 (256×212) + .pal downloaded.`);
     } else if (this.target === 'sc2') {
-      exportSc2(r);
-      this.setStatus('EXPORTED', `SCREEN 2 · ${r.width}×${r.height}px · .sc2 (256×192) + .pal downloaded.`);
+      exportSc2(r, this.msx1);
+      this.setStatus('EXPORTED', `SCREEN 2 · ${r.width}×${r.height}px · .sc2 (256×192)${this.msx1 ? '' : ' + .pal'} downloaded.`);
     } else {
       const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
       exportPng(r, this.selection);
