@@ -137,12 +137,12 @@ export class AppStore {
     this.notify();
   }
 
-  stamp(cx: number, cy: number, radius: number, getColor: (x: number, y: number) => number): void {
+  stamp(cx: number, cy: number, radius: number, getColor: (x: number, y: number) => number, square = false): void {
     if (!this.result) return;
     const R = this.result;
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
-        if (dx * dx + dy * dy > radius * radius) continue;
+        if (!square && dx * dx + dy * dy > radius * radius) continue;
         const x = cx + dx;
         const y = cy + dy;
         if (x < 0 || y < 0 || x >= R.width || y >= R.height) continue;
