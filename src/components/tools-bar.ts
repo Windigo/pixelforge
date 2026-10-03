@@ -2,11 +2,11 @@ import { LitElement, html } from 'lit';
 import { store, StoreController } from '../state/store';
 import type { ToolMode } from '../core/types';
 
-const MODES: { id: ToolMode; label: string }[] = [
-  { id: 'pencil', label: '✎ Potlood (B)' },
-  { id: 'eraser', label: '⌫ Gum (E)' },
-  { id: 'picker', label: '💧 Pipet (I)' },
-  { id: 'pan', label: '✥ Verslepen (H)' },
+const MODES: { id: ToolMode; icon: string; label: string }[] = [
+  { id: 'pencil', icon: '🖌️', label: 'Brush (B)' },
+  { id: 'eraser', icon: '⌫', label: 'Eraser (E)' },
+  { id: 'picker', icon: '💧', label: 'Eyedropper (I)' },
+  { id: 'pan', icon: '✋', label: 'Hand (H)' },
 ];
 
 export class ToolsBar extends LitElement {
@@ -27,7 +27,8 @@ export class ToolsBar extends LitElement {
           ${MODES.map(
             (m) => html`
               <button class=${store.mode === m.id ? 'tool active' : 'tool'} @click=${() => store.setMode(m.id)}>
-                ${m.label}
+                <span class="tool-icon">${m.icon}</span>
+                <span class="tool-label">${m.label}</span>
               </button>
             `,
           )}
@@ -37,7 +38,7 @@ export class ToolsBar extends LitElement {
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
-        <p class="hint">Potlood: links = voorgrond, rechts = achtergrond · Gum: transparant · Pipet: kleur pakken · Verslepen: sleep.</p>
+        <p class="hint">Brush: links = voorgrond, rechts = achtergrond · Eraser: transparant · Eyedropper: kleur pakken · Hand: sleep.</p>
       </div>
     `;
   }

@@ -91,7 +91,9 @@ input[type='range']:disabled {
 .bits button.active, .tool.active { background: var(--yellow); color: #1b2230; border-color: #ffe698; }
 
 .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.tool { padding: 8px; text-align: left; }
+.tool { padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tool-icon { font-size: 26px; line-height: 1; }
+.tool-label { font-size: 10px; white-space: nowrap; }
 .undo-btn { width: 100%; margin-top: 10px; padding: 8px; }
 .undo-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
