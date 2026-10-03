@@ -227,9 +227,6 @@ export class PreviewPane extends LitElement {
           const useA = ditherValue(store.ditherPattern, cx + lx, cy + ly) < store.ditherLevel;
           col = useA ? ca : cb;
         }
-        if (!inside(lx - 1, ly) || !inside(lx + 1, ly) || !inside(lx, ly - 1) || !inside(lx, ly + 1)) {
-          col = [Math.round(col[0] * 0.55 + 115), Math.round(col[1] * 0.55 + 115), Math.round(col[2] * 0.55 + 115)];
-        }
         img.data[o] = col[0];
         img.data[o + 1] = col[1];
         img.data[o + 2] = col[2];
