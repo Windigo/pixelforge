@@ -76,6 +76,11 @@ input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; po
 .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 9px 0; }
 .row label { color: var(--muted); }
 input[type='range'] { width: 100%; accent-color: var(--yellow); }
+input[type='range']:disabled {
+  opacity: 0.35;
+  accent-color: #5a6678;
+  cursor: not-allowed;
+}
 
 .bits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .bits button, .tool, button {

@@ -49,7 +49,10 @@ export class PaletteControls extends LitElement {
                 <p class="hint">${t === 'sc5' ? 'SCREEN 5 · 256×212 · 16 kleuren (4 bits/pixel)' : 'SCREEN 2 · 256×192 · 16 kleuren · max 2 kleuren per 8×1 regel'}</p>
               `}
 
-        <div class="row"><label>KLEUREN SAMENVOEGEN</label><b>${store.merge}</b></div>
+        <div class="row">
+          <label>KLEUREN SAMENVOEGEN${fixedPalette ? html` <pf-tooltip text="Uitgeschakeld: bij een vast MSX1-palet liggen de 16 kleuren vast, dus er valt niets samen te voegen. Zet 'VAST MSX1-PALET' uit om dit te activeren."></pf-tooltip>` : ''}</label>
+          <b>${store.merge}</b>
+        </div>
         <input type="range" min="0" max="80" .value=${String(store.merge)} ?disabled=${fixedPalette} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />
 
         <label class="check">
@@ -57,7 +60,7 @@ export class PaletteControls extends LitElement {
           FLOYD–STEINBERG DITHER
         </label>
 
-        <p class="hint">${fixedPalette ? 'Vast MSX1-palet: kleuren samenvoegen heeft geen effect.' : 'Klik een paletvak om die kleur vast te zetten.'}</p>
+        <p class="hint">Klik een paletvak om die kleur vast te zetten.</p>
       </div>
     `;
   }
