@@ -18,7 +18,7 @@ export class AppStore {
   planes = 5;
   merge = 20;
   dither = false;
-  resample = false;
+  resample = true;
   scale = 100;
   sampling: Sampling = 'center';
   widthInput = '';
