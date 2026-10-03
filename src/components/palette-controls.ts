@@ -42,6 +42,7 @@ export class PaletteControls extends LitElement {
                       <label class="check">
                         <input type="checkbox" .checked=${store.msx1} @change=${(e: Event) => store.setMsx1((e.target as HTMLInputElement).checked)} />
                         VAST MSX1-PALET (TMS9918)
+                        <pf-tooltip text="Standaard aan: de 16 vaste MSX1-kleuren (TMS9918). Zet dit uit als je voor MSX2 maakt — dan worden de 16 kleuren automatisch op jouw afbeelding afgestemd (betere kleurnauwkeurigheid)."></pf-tooltip>
                       </label>
                     `
                   : ''}

@@ -74,6 +74,7 @@ src/
 | `pf-palette-swatches` | kleurenpalet + vastzetten |
 | `pf-status-bar` | statusbalk |
 | `pf-preview-pane` | canvas + zoom/pan/selectie (`kind="original"|"output"`) |
+| `pf-tooltip` | herbruikbaar "?"-hulpicoon (`text`-attribuut, toont bij hover/focus) |
 
 ## Gotchas / valkuilen
 
@@ -110,7 +111,7 @@ src/
   TypeScript+Lit: **"niet één groot bestand, maar componenten met een afgebakende taak."**
 - **"Niet bitplanes maar gewoon aantal kleuren tonen"** — voor MSX/PNG-doelen wordt een
   vast "16 kleuren" of een kleuren-slider getoond i.p.v. bitplanes.
-- **MSX1 vast palet (TMS9918)** — optioneel vinkje voor SCREEN 2 (anders MSX2-palet).
+- **MSX1 vast palet (TMS9918)** — vinkje voor SCREEN 2, **standaard aan** (met tooltip-uitleg); uitzetten = eigen MSX2-palet (alleen zinvol voor MSX2).
 - **PNG laden in het origineel-paneel** (klik + drag-drop), niet een aparte drop-zone.
 - **Menubalk** (LADEN / OPSLAAN / formaatkeuze) om het zijmenu klein te houden.
 

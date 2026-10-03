@@ -153,6 +153,22 @@ select { font: inherit; background: #273348; color: var(--ink); border: 1px soli
 .nav button { width: 34px; height: 32px; font-size: 21px; font-weight: bold; line-height: 1; }
 .nav button:last-child { font-size: 18px; }
 
+/* tooltip */
+.tip { position: relative; display: inline-flex; align-items: center; }
+.tip-mark {
+  width: 15px; height: 15px; padding: 0; border-radius: 50%;
+  background: #3a4a63; color: var(--ink); border: 1px solid #61708a;
+  cursor: help; font: bold 10px/1 ui-monospace, monospace; line-height: 13px; text-align: center;
+}
+.tip-mark:hover, .tip-mark:focus { background: var(--cyan); color: #08201f; border-color: #9ff; }
+.tip-bubble {
+  position: absolute; bottom: 150%; right: 0;
+  width: 220px; padding: 9px 11px; background: #1b2637; border: 1px solid #526078;
+  border-radius: 5px; color: var(--ink); font-size: 11px; line-height: 1.45; font-weight: normal;
+  text-align: left; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); z-index: 60;
+}
+.tip-bubble[hidden] { display: none; }
+
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }
   aside { border-right: 0; border-bottom: 2px solid #45536a; }

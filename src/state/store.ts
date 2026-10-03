@@ -13,7 +13,7 @@ export class AppStore {
   result: ConvertResult | null = null;
 
   target: Target = 'amiga';
-  msx1 = false;
+  msx1 = true;
   colors = 16;
   planes = 5;
   merge = 20;
