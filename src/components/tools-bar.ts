@@ -5,10 +5,10 @@ import type { ToolMode } from '../core/types';
 const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
   {
     id: 'pencil',
-    label: 'Brush (B)',
+    label: 'Pencil (P)',
     paths: [
-      'M9.06 11.9 17.13 3.83a2.85 2.85 0 1 1 4.03 4.03l-8.07 8.07',
-      'M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z',
+      'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z',
+      'm15 5 4 4',
     ],
   },
   {
@@ -76,7 +76,7 @@ export class ToolsBar extends LitElement {
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
-        <p class="hint">Brush: left = foreground, right = background · Eraser: transparent · Eyedropper: pick colour · Hand: pan.</p>
+        <p class="hint">Pencil: left = foreground, right = background · Eraser: transparent · Eyedropper: pick colour · Hand: pan.</p>
       </div>
     `;
   }

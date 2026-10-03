@@ -29,7 +29,7 @@ export class AppShell extends LitElement {
       return;
     }
     const k = e.key.toLowerCase();
-    if (k === 'b') store.setMode('pencil');
+    if (k === 'p') store.setMode('pencil');
     else if (k === 'e') store.setMode('eraser');
     else if (k === 'i') store.setMode('picker');
     else if (k === 'h') store.setMode('pan');
