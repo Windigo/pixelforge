@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, svg } from 'lit';
 import { store, StoreController } from '../state/store';
 import type { ToolMode } from '../core/types';
 
@@ -51,6 +51,12 @@ const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
   },
 ];
 
+const toolIcon = (paths: string[]) => svg`
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    ${paths.map((p) => svg`<path d=${p} />`)}
+  </svg>
+`;
+
 export class ToolsBar extends LitElement {
   constructor() {
     super();
@@ -69,11 +75,7 @@ export class ToolsBar extends LitElement {
           ${MODES.map(
             (m) => html`
               <button class=${store.mode === m.id ? 'tool active' : 'tool'} @click=${() => store.setMode(m.id)}>
-                <span class="tool-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    ${m.paths.map((p) => html`<path d=${p} />`)}
-                  </svg>
-                </span>
+                <span class="tool-icon">${toolIcon(m.paths)}</span>
                 <span class="tool-label">${m.label}</span>
               </button>
             `,

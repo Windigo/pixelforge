@@ -181,13 +181,14 @@ export class PreviewPane extends LitElement {
     }
     const p = this.point(e, canvas!);
     const zoom = store.views[this.kind].zoom;
-    const size = Math.max(1, zoom);
+    const r = store.brushSize;
+    const size = Math.max(1, (r * 2 + 1) * zoom);
     const wrap = this.querySelector('.canvas-wrap') as HTMLElement;
     const cr = canvas!.getBoundingClientRect();
     const wr = wrap.getBoundingClientRect();
     cursor.hidden = false;
-    cursor.style.left = `${cr.left - wr.left + p.x * zoom}px`;
-    cursor.style.top = `${cr.top - wr.top + p.y * zoom}px`;
+    cursor.style.left = `${cr.left - wr.left + (p.x - r) * zoom}px`;
+    cursor.style.top = `${cr.top - wr.top + (p.y - r) * zoom}px`;
     cursor.style.width = `${size}px`;
     cursor.style.height = `${size}px`;
     const palette = store.result?.palette ?? [];
