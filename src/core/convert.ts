@@ -34,12 +34,6 @@ function targetMaxColors(o: ConvertOptions): number {
   return 16;
 }
 
-function targetDims(o: ConvertOptions): { w: number; h: number } | null {
-  if (o.target === 'sc5') return { w: 256, h: 212 };
-  if (o.target === 'sc2') return { w: 256, h: 192 };
-  return null;
-}
-
 function scaledDims(
   source: HTMLCanvasElement,
   o: ConvertOptions,
@@ -54,16 +48,6 @@ function makeWork(
   source: HTMLCanvasElement,
   o: ConvertOptions,
 ): { canvas: HTMLCanvasElement; width: number; height: number } {
-  const td = targetDims(o);
-  if (td) {
-    // MSX: uitvoer = (optioneel geschaalde) grootte, begrensd op de MSX-schermgrootte.
-    const pre = scaledDims(source, o);
-    const tw = pre ? pre.w : source.width;
-    const th = pre ? pre.h : source.height;
-    const w = Math.max(1, Math.min(tw, td.w));
-    const h = Math.max(1, Math.min(th, td.h));
-    return { canvas: resampleTo(source, w, h, o.sampling), width: w, height: h };
-  }
   const pre = scaledDims(source, o);
   if (!pre) return { canvas: source, width: source.width, height: source.height };
   return { canvas: resampleTo(source, pre.w, pre.h, o.sampling), width: pre.w, height: pre.h };

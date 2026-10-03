@@ -92,8 +92,9 @@ src/
 - **SCREEN 2**: 256×192, VRAM-dump 0x0000–0x37FF (patroongenerator @0x0000, naamtabel @0x1800, kleurtabel @0x2000). 2 kleuren per 8×1-regel; waarschuwing bij >256 patronen.
 - **PNG**: cropt selectie, tekent preview-canvas naar een nieuwe canvas, `toBlob`.
 
-> **MSX-schaal**: de uitvoer is de *geschaalde* grootte (begrensd op 256×212 resp. 256×192),
-> niet geforceerd vast. De export vult de rest van het MSX-scherm op met kleurindex 0.
+> **MSX-schaal**: de uitvoer is de *vrij geschaalde* grootte (zoals Amiga), niet geforceerd vast.
+> Bij export wordt de afbeelding bijgesneden (top-left) tot 256×212 resp. 256×192 als hij groter
+> is, of opgevuld met kleurindex 0 als hij kleiner is.
 
 ## Deploy
 

@@ -39,8 +39,8 @@ export class ResolutionControls extends LitElement {
         <p class="hint">
           ${isMsx
             ? store.target === 'sc5'
-              ? 'Schaal de bron; de uitvoer wordt begrensd op 256 × 212 (SCREEN 5).'
-              : 'Schaal de bron; de uitvoer wordt begrensd op 256 × 192 (SCREEN 2).'
+              ? 'Schaal de bron vrij; bij export wordt bijgesneden/opgevuld tot 256 × 212.'
+              : 'Schaal de bron vrij; bij export wordt bijgesneden/opgevuld tot 256 × 192.'
             : 'Voer breedte óf hoogte in; de verhouding blijft gelijk.'}
         </p>
       </div>
