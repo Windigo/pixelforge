@@ -30,6 +30,11 @@ export class PreviewPane extends LitElement {
     return this;
   }
 
+  firstUpdated(): void {
+    const wrap = this.querySelector('.canvas-wrap') as HTMLElement | null;
+    wrap?.addEventListener('wheel', (e: WheelEvent) => this.onWheel(e), { passive: false });
+  }
+
   private canvas(): HTMLCanvasElement | null {
     return this.querySelector('canvas');
   }
@@ -62,7 +67,6 @@ export class PreviewPane extends LitElement {
           @click=${() => this.onClick()}
           @contextmenu=${(e: Event) => e.preventDefault()}
           @pointerleave=${() => this.hideCursor()}
-          @wheel=${(e: WheelEvent) => this.onWheel(e)}
           @dragover=${(e: DragEvent) => this.onDragOver(e)}
           @dragleave=${() => this.onDragLeave()}
           @drop=${(e: DragEvent) => this.onDrop(e)}
@@ -217,12 +221,13 @@ export class PreviewPane extends LitElement {
 
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
+    const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1;
     if (e.ctrlKey || e.metaKey) {
       this.changeZoom(e.deltaY < 0 ? 0.5 : -0.5);
       return;
     }
     const v = store.views[this.kind];
-    store.setView(this.kind, { zoom: v.zoom, x: v.x - e.deltaX, y: v.y - e.deltaY });
+    store.setView(this.kind, { zoom: v.zoom, x: v.x - e.deltaX * scale, y: v.y - e.deltaY * scale });
   }
 
   private point(e: PointerEvent, canvas: HTMLCanvasElement): { x: number; y: number } {
