@@ -115,6 +115,16 @@ select { font: inherit; background: #273348; color: var(--ink); border: 1px soli
 .status b { color: var(--yellow); }
 
 .previews { max-width: 1630px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.res-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; margin: 14px auto 0; max-width: 1630px;
+  border: 1px solid #3e4b60; background: #161e2b;
+}
+.res-label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.res-bar input[type='range'] { flex: 1 1 150px; min-width: 120px; width: auto; }
+.res-bar input[inputmode='numeric'] {
+  width: 68px; background: #f5f5f5; border: 0; padding: 4px; color: #111; font: 12px monospace;
+}
 pf-preview-pane { display: block; }
 .window {
   min-width: 0; border: 2px solid #48566d; background: #121925;

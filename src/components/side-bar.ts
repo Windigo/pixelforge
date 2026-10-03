@@ -20,7 +20,6 @@ export class SideBar extends LitElement {
       <aside>
         <p class="hint">${info}</p>
         <pf-palette-controls></pf-palette-controls>
-        <pf-resolution-controls></pf-resolution-controls>
         <pf-tools-bar></pf-tools-bar>
       </aside>
     `;

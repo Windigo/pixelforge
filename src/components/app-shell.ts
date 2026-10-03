@@ -22,6 +22,7 @@ export class AppShell extends LitElement {
             <pf-preview-pane kind="original"></pf-preview-pane>
             <pf-preview-pane kind="output"></pf-preview-pane>
           </div>
+          <pf-resolution-controls></pf-resolution-controls>
         </main>
       </div>
     `;
