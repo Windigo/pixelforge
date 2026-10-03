@@ -113,14 +113,14 @@ export function exportPng(r: ConvertResult, selection: Selection | null): void {
 }
 
 export function exportSc5(r: ConvertResult): void {
-  const w = 256;
-  const h = 212;
-  const bitmap = new Uint8Array((w * h) / 2);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x += 2) {
-      const i1 = r.indexed[y * w + x];
-      const i2 = r.indexed[y * w + x + 1];
-      bitmap[(y * w + x) / 2] = (i1 << 4) | i2;
+  const W = 256;
+  const H = 212;
+  const bitmap = new Uint8Array((W * H) / 2);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x += 2) {
+      const i1 = y < r.height && x < r.width ? r.indexed[y * r.width + x] : 0;
+      const i2 = y < r.height && x + 1 < r.width ? r.indexed[y * r.width + x + 1] : 0;
+      bitmap[(y * W + x) / 2] = (i1 << 4) | i2;
     }
   }
   downloadBytes(bsave(bitmap, 0x0000, 0x0000), 'pixelforge.sc5');
@@ -128,7 +128,9 @@ export function exportSc5(r: ConvertResult): void {
 }
 
 export function exportSc2(r: ConvertResult): void {
-  const w = 256;
+  const at = (y: number, x: number): number =>
+    y < r.height && x < r.width ? r.indexed[y * r.width + x] : 0;
+
   const nameTable = new Uint8Array(768);
   const colorTable = new Uint8Array(768 * 8);
   const patterns: Uint8Array[] = [];
@@ -141,8 +143,8 @@ export function exportSc2(r: ConvertResult): void {
       for (let row = 0; row < 8; row++) {
         const counts = new Map<number, number>();
         for (let px = 0; px < 8; px++) {
-          const idx = r.indexed[(by * 8 + row) * w + bx * 8 + px];
-          counts.set(idx, (counts.get(idx) ?? 0) + 1);
+          const pi = at(by * 8 + row, bx * 8 + px);
+          counts.set(pi, (counts.get(pi) ?? 0) + 1);
         }
         const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
         const fg = entries[0][0];
@@ -151,9 +153,9 @@ export function exportSc2(r: ConvertResult): void {
 
         let byte = 0;
         for (let px = 0; px < 8; px++) {
-          const idx = r.indexed[(by * 8 + row) * w + bx * 8 + px];
-          const dFG = rgbDist(r.palette[idx], r.palette[fg]);
-          const dBG = rgbDist(r.palette[idx], r.palette[bg]);
+          const pi = at(by * 8 + row, bx * 8 + px);
+          const dFG = rgbDist(r.palette[pi], r.palette[fg]);
+          const dBG = rgbDist(r.palette[pi], r.palette[bg]);
           if (dFG <= dBG) byte |= 0x80 >> px;
         }
         block[row] = byte;

@@ -56,10 +56,13 @@ function makeWork(
 ): { canvas: HTMLCanvasElement; width: number; height: number } {
   const td = targetDims(o);
   if (td) {
-    // Vaste MSX-resolutie: schaal de bron eerst (optioneel), daarna naar de vaste maat.
+    // MSX: uitvoer = (optioneel geschaalde) grootte, begrensd op de MSX-schermgrootte.
     const pre = scaledDims(source, o);
-    const src = pre ? resampleTo(source, pre.w, pre.h, o.sampling) : source;
-    return { canvas: resampleTo(src, td.w, td.h, o.sampling), width: td.w, height: td.h };
+    const tw = pre ? pre.w : source.width;
+    const th = pre ? pre.h : source.height;
+    const w = Math.max(1, Math.min(tw, td.w));
+    const h = Math.max(1, Math.min(th, td.h));
+    return { canvas: resampleTo(source, w, h, o.sampling), width: w, height: h };
   }
   const pre = scaledDims(source, o);
   if (!pre) return { canvas: source, width: source.width, height: source.height };

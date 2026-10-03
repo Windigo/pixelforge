@@ -136,10 +136,10 @@ export class AppStore {
       this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px ILBM gedownload.`);
     } else if (this.target === 'sc5') {
       exportSc5(r);
-      this.setStatus('EXPORTED', 'SCREEN 5 · 256×212 · bitmap (.sc5) + MSX2-palet (.pal) gedownload.');
+      this.setStatus('EXPORTED', `SCREEN 5 · ${r.width}×${r.height}px · .sc5 (256×212) + .pal gedownload.`);
     } else if (this.target === 'sc2') {
       exportSc2(r);
-      this.setStatus('EXPORTED', 'SCREEN 2 · 256×192 · VRAM-dump (.sc2) + palet (.pal) gedownload.');
+      this.setStatus('EXPORTED', `SCREEN 2 · ${r.width}×${r.height}px · .sc2 (256×192) + .pal gedownload.`);
     } else {
       const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
       exportPng(r, this.selection);
