@@ -404,7 +404,7 @@ export class PreviewPane extends LitElement {
   }
 
   private onClick(): void {
-    if (this.kind === 'original' && !store.source) store.fileInput?.click();
+    if (this.kind === 'original') store.fileInput?.click();
   }
 
   private onDragOver(e: DragEvent): void {
