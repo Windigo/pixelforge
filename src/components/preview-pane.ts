@@ -19,6 +19,7 @@ export class PreviewPane extends LitElement {
 
   kind: 'original' | 'output' = 'original';
   private drag: Drag | null = null;
+  private lastPointer: PointerEvent | null = null;
 
   constructor() {
     super();
@@ -92,6 +93,7 @@ export class PreviewPane extends LitElement {
 
   updated(): void {
     this.draw();
+    this.applyToolCursor();
   }
 
   private draw(): void {
@@ -194,6 +196,17 @@ export class PreviewPane extends LitElement {
   private hideCursor(): void {
     const cursor = this.querySelector('.brush-cursor') as HTMLElement | null;
     if (cursor) cursor.hidden = true;
+    this.lastPointer = null;
+  }
+
+  private applyToolCursor(): void {
+    const canvas = this.canvas();
+    if (canvas) {
+      canvas.style.cursor =
+        store.mode === 'zoom' ? 'zoom-in' : store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
+    }
+    if (this.lastPointer) this.updateCursor(this.lastPointer);
+    else this.hideCursor();
   }
 
   private changeZoom(delta: number): void {
@@ -256,6 +269,7 @@ export class PreviewPane extends LitElement {
   }
 
   private onPointerMove(e: PointerEvent): void {
+    this.lastPointer = e;
     this.updateCursor(e);
     const d = this.drag;
     if (!d || d.id !== e.pointerId) return;
