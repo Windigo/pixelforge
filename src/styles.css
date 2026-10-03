@@ -103,7 +103,15 @@ select { font: inherit; background: #273348; color: var(--ink); border: 1px soli
 
 .palette { display: flex; flex-wrap: wrap; gap: 5px; }
 .swatch { width: 23px; height: 23px; border: 1px solid #8793a6; cursor: pointer; }
-.swatch.pinned { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.swatch.sel-fg { outline: 2px solid var(--yellow); outline-offset: 1px; }
+.swatch.sel-bg { outline: 2px solid #fff; outline-offset: 1px; }
+.fg-bg {
+  position: relative; width: 26px; height: 26px; flex: 0 0 auto;
+  border: 1px solid #8793a6;
+}
+.swatch-block { position: absolute; width: 15px; height: 15px; }
+.swatch-block.fg { left: 0; top: 0; border: 1px solid #fff; }
+.swatch-block.bg { right: 0; bottom: 0; border: 1px solid #000; }
 
 /* ── main / previews ──────────────────────────────────── */
 .main { padding: 20px; min-width: 0; }

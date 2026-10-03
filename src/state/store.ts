@@ -26,7 +26,9 @@ export class AppStore {
 
   pinned: RGB[] = [];
   selection: Selection | null = null;
-  mode: ToolMode = 'select';
+  mode: ToolMode = 'pencil';
+  fg = 1;
+  bg = 1;
   views: { original: ViewState; output: ViewState } = {
     original: { zoom: 1, x: 0, y: 0 },
     output: { zoom: 1, x: 0, y: 0 },
@@ -95,6 +97,31 @@ export class AppStore {
 
   // ── view/interactie (geen reconversie) ─────────────────
   setMode(m: ToolMode): void { this.mode = m; this.notify(); }
+  setFg(i: number): void { this.fg = i; this.notify(); }
+  setBg(i: number): void { this.bg = i; this.notify(); }
+
+  paint(x: number, y: number, index: number): void {
+    if (!this.result) return;
+    const r = this.result;
+    if (x < 0 || y < 0 || x >= r.width || y >= r.height) return;
+    r.indexed[y * r.width + x] = index;
+    const ctx = r.preview.getContext('2d')!;
+    const px = ctx.getImageData(x, y, 1, 1);
+    if (index === 0) {
+      px.data[0] = 0;
+      px.data[1] = 0;
+      px.data[2] = 0;
+      px.data[3] = 0;
+    } else {
+      const c = r.palette[index] ?? [0, 0, 0];
+      px.data[0] = c[0];
+      px.data[1] = c[1];
+      px.data[2] = c[2];
+      px.data[3] = 255;
+    }
+    ctx.putImageData(px, x, y);
+    this.notify();
+  }
   setSelection(s: Selection | null): void { this.selection = s; this.notify(); }
   setView(kind: 'original' | 'output', v: ViewState): void {
     this.views[kind] = v;

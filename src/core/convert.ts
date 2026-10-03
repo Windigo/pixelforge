@@ -61,7 +61,10 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
   const palette =
     o.target === 'sc2' && o.msx1
       ? MSX1_PALETTE.map((c) => [...c] as RGB)
-      : quantize(src.data, targetMaxColors(o), o.merge, o.pinned);
+      : ([
+          [0, 0, 0] as RGB,
+          ...quantize(src.data, targetMaxColors(o) - 1, o.merge, o.pinned),
+        ] as RGB[]);
 
   const indexed = new Uint8Array(work.width * work.height);
   const dst = ctx.createImageData(work.width, work.height);

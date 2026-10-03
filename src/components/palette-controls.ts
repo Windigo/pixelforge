@@ -20,7 +20,7 @@ export class PaletteControls extends LitElement {
 
         ${t === 'amiga'
           ? html`
-              <div class="row"><label>BITPLANES</label><b>${store.planes} BITPLANES · ${1 << store.planes} KLEUREN</b></div>
+              <div class="row"><label>BITPLANES</label><b>${store.planes} BITPLANES · ${(1 << store.planes) - 1} KLEUREN + TRANSPARANT</b></div>
               <input type="range" min="1" max="8" .value=${String(store.planes)} @input=${(e: Event) => store.setPlanes(Number((e.target as HTMLInputElement).value))} />
               <div class="bits">
                 ${[1, 2, 3, 4, 5, 6, 7, 8].map(
@@ -32,11 +32,11 @@ export class PaletteControls extends LitElement {
             `
           : t === 'png'
             ? html`
-                <div class="row"><label>AANTAL KLEUREN</label><b>${store.colors} KLEUREN</b></div>
+                <div class="row"><label>AANTAL KLEUREN</label><b>${store.colors - 1} KLEUREN + TRANSPARANT</b></div>
                 <input type="range" min="2" max="256" .value=${String(store.colors)} @input=${(e: Event) => store.setColors(Number((e.target as HTMLInputElement).value))} />
               `
             : html`
-                <div class="row"><label>KLEUREN</label><b>16 KLEUREN</b></div>
+                <div class="row"><label>KLEUREN</label><b>15 KLEUREN + TRANSPARANT</b></div>
                 ${t === 'sc2'
                   ? html`
                       <span class="check">

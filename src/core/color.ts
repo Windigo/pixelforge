@@ -14,15 +14,16 @@ export function rgbDist(a: RGB, b: RGB): number {
 }
 
 export function nearest(r: number, g: number, b: number, palette: RGB[]): number {
-  let best = 0;
+  let best = 1;
   let score = Infinity;
-  palette.forEach((c, i) => {
+  for (let i = 1; i < palette.length; i++) {
+    const c = palette[i];
     const d = (r - c[0]) ** 2 + (g - c[1]) ** 2 + (b - c[2]) ** 2;
     if (d < score) {
       score = d;
       best = i;
     }
-  });
+  }
   return best;
 }
 

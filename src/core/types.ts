@@ -1,5 +1,5 @@
 export type Target = 'amiga' | 'sc5' | 'sc2' | 'png';
-export type ToolMode = 'select' | 'zoom' | 'pan';
+export type ToolMode = 'pencil' | 'eraser' | 'zoom' | 'pan';
 export type Sampling = 'center' | 'dominant';
 export type RGB = [number, number, number];
 

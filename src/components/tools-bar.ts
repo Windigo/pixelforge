@@ -3,7 +3,8 @@ import { store, StoreController } from '../state/store';
 import type { ToolMode } from '../core/types';
 
 const MODES: { id: ToolMode; label: string }[] = [
-  { id: 'select', label: '□ Selectie' },
+  { id: 'pencil', label: '✎ Potlood' },
+  { id: 'eraser', label: '⌫ Gum' },
   { id: 'zoom', label: '⌕ Zoom' },
   { id: 'pan', label: '✥ Verslepen' },
 ];
@@ -30,9 +31,8 @@ export class ToolsBar extends LitElement {
               </button>
             `,
           )}
-          <button class="tool" @click=${() => store.setSelection(null)}>× Wis selectie</button>
         </div>
-        <p class="hint">Selectie: sleep met links. Zoom: klik. Verslepen: middelste muisknop, ⌘/Ctrl + sleep, of de hand-tool.</p>
+        <p class="hint">Potlood: links = voorgrond, rechts = achtergrond · Gum: transparant · Zoom: klik · Verslepen: sleep.</p>
       </div>
     `;
   }

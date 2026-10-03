@@ -2,13 +2,14 @@ import { LitElement, html } from 'lit';
 import { store, StoreController } from '../state/store';
 
 type Drag = {
-  type: 'pan' | 'select';
+  type: 'pan' | 'draw';
   id: number;
   x: number;
   y: number;
   px: number;
   py: number;
-  start: { x: number; y: number };
+  button: number;
+  last: { x: number; y: number };
 };
 
 export class PreviewPane extends LitElement {
@@ -58,6 +59,7 @@ export class PreviewPane extends LitElement {
           @pointerup=${(e: PointerEvent) => this.onPointerUp(e)}
           @pointercancel=${(e: PointerEvent) => this.onPointerUp(e)}
           @click=${() => this.onClick()}
+          @contextmenu=${(e: Event) => e.preventDefault()}
           @dragover=${(e: DragEvent) => this.onDragOver(e)}
           @dragleave=${() => this.onDragLeave()}
           @drop=${(e: DragEvent) => this.onDrop(e)}
@@ -155,7 +157,6 @@ export class PreviewPane extends LitElement {
   }
 
   private onPointerDown(e: PointerEvent): void {
-    if (!store.source) return;
     const canvas = this.canvas();
     if (!canvas || !canvas.width) return;
     const pan = e.button === 1 || e.metaKey || e.ctrlKey || store.mode === 'pan';
@@ -167,14 +168,15 @@ export class PreviewPane extends LitElement {
     canvas.setPointerCapture?.(e.pointerId);
     if (pan) {
       const v = store.views[this.kind];
-      this.drag = { type: 'pan', id: e.pointerId, x: e.clientX, y: e.clientY, px: v.x, py: v.y, start: { x: 0, y: 0 } };
+      this.drag = { type: 'pan', id: e.pointerId, x: e.clientX, y: e.clientY, px: v.x, py: v.y, button: 0, last: { x: 0, y: 0 } };
       canvas.style.cursor = 'grabbing';
       return;
     }
-    if (e.button !== 0) return;
+    if (this.kind !== 'output') return;
+    if (e.button !== 0 && e.button !== 2) return;
     const p = this.toIff(this.point(e, canvas));
-    this.drag = { type: 'select', id: e.pointerId, x: e.clientX, y: e.clientY, px: 0, py: 0, start: p };
-    store.setSelection({ x: p.x, y: p.y, w: 0, h: 0 });
+    this.drag = { type: 'draw', id: e.pointerId, x: e.clientX, y: e.clientY, px: 0, py: 0, button: e.button, last: p };
+    this.paintAt(p.x, p.y, e.button);
   }
 
   private onPointerMove(e: PointerEvent): void {
@@ -187,13 +189,8 @@ export class PreviewPane extends LitElement {
       store.setView(this.kind, { zoom: v.zoom, x: d.px + e.clientX - d.x, y: d.py + e.clientY - d.y });
     } else {
       const p = this.toIff(this.point(e, canvas));
-      const a = d.start;
-      store.setSelection({
-        x: Math.min(a.x, p.x),
-        y: Math.min(a.y, p.y),
-        w: Math.abs(a.x - p.x),
-        h: Math.abs(a.y - p.y),
-      });
+      this.drawLine(d.last.x, d.last.y, p.x, p.y, d.button);
+      d.last = p;
     }
   }
 
@@ -204,7 +201,37 @@ export class PreviewPane extends LitElement {
     if (canvas) {
       canvas.style.cursor = store.mode === 'zoom' ? 'zoom-in' : store.mode === 'pan' ? 'grab' : 'crosshair';
     }
-    if (store.selection && (store.selection.w < 1 || store.selection.h < 1)) store.setSelection(null);
+  }
+
+  private paintAt(x: number, y: number, button: number): void {
+    if (store.mode === 'eraser') {
+      store.paint(x, y, 0);
+    } else {
+      store.paint(x, y, button === 2 ? store.bg : store.fg);
+    }
+  }
+
+  private drawLine(x0: number, y0: number, x1: number, y1: number, button: number): void {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    let x = x0;
+    let y = y0;
+    for (;;) {
+      this.paintAt(x, y, button);
+      if (x === x1 && y === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y += sy;
+      }
+    }
   }
 
   private onClick(): void {
