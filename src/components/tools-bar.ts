@@ -3,9 +3,9 @@ import { store, StoreController } from '../state/store';
 import type { ToolMode } from '../core/types';
 
 const MODES: { id: ToolMode; label: string }[] = [
-  { id: 'pencil', label: '✎ Potlood' },
-  { id: 'eraser', label: '⌫ Gum' },
-  { id: 'picker', label: '💧 Pipet' },
+  { id: 'pencil', label: '✎ Potlood (B)' },
+  { id: 'eraser', label: '⌫ Gum (E)' },
+  { id: 'picker', label: '💧 Pipet (I)' },
   { id: 'zoom', label: '⌕ Zoom' },
   { id: 'pan', label: '✥ Verslepen' },
 ];

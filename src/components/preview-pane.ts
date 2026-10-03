@@ -146,16 +146,16 @@ export class PreviewPane extends LitElement {
 
   private drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const zoom = store.views[this.kind].zoom;
-    if (zoom < 4) return;
+    const step = Math.max(1, Math.round(8 / zoom));
     ctx.save();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
     ctx.lineWidth = 1 / zoom;
     ctx.beginPath();
-    for (let x = 1; x < w; x++) {
+    for (let x = step; x < w; x += step) {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, h);
     }
-    for (let y = 1; y < h; y++) {
+    for (let y = step; y < h; y += step) {
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
     }

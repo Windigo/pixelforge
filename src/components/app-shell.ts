@@ -10,6 +10,25 @@ export class AppShell extends LitElement {
     store.fileInput = this.querySelector('#file') as HTMLInputElement | null;
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener('keydown', this.onKeyDown);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    window.removeEventListener('keydown', this.onKeyDown);
+  }
+
+  private onKeyDown = (e: KeyboardEvent): void => {
+    const el = e.target as HTMLElement | null;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') store.setMode('pencil');
+    else if (k === 'e') store.setMode('eraser');
+    else if (k === 'i') store.setMode('picker');
+  };
+
   render() {
     return html`
       <pf-menu-bar></pf-menu-bar>
