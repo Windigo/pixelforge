@@ -160,10 +160,15 @@ pf-preview-pane { display: block; }
 }
 .window-head {
   flex: 0 0 auto;
-  height: 38px; padding: 9px 11px; border-bottom: 1px solid #46546b;
+  min-height: 38px; padding: 5px 11px; border-bottom: 1px solid #46546b;
   background: #202b3d; font-weight: bold; font-size: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
 }
-.window-head small { float: right; color: var(--muted); }
+.window-head small { color: var(--muted); margin-left: auto; }
+.head-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.head-actions .fmt { padding: 4px 8px; font-size: 10px; }
+.head-actions .save { background: var(--yellow); color: #182030; border-color: #ffe394; }
+.head-actions .save:disabled { opacity: 0.45; cursor: not-allowed; }
 .canvas-wrap {
   flex: 0 0 auto; height: min(58vh, 590px); min-height: 310px; position: relative; overflow: hidden;
   background-color: #111927;

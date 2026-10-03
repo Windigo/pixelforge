@@ -6,12 +6,14 @@ import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
 import { exportIlbm, exportPng, exportSc2, exportSc5 } from '../export/exporters';
+import { decodeImage, detectFormat, FORMAT_LABELS, type SourceFormat } from '../import/importers';
 
 type Listener = () => void;
 
 export class AppStore {
   source: HTMLCanvasElement | null = null;
   result: ConvertResult | null = null;
+  sourceType: SourceFormat = 'png';
 
   target: Target = 'amiga';
   msx1 = true;
@@ -41,7 +43,7 @@ export class AppStore {
     original: { zoom: 1, x: 0, y: 0 },
     output: { zoom: 1, x: 0, y: 0 },
   };
-  status = { head: 'WAITING FOR SOURCE', text: 'Load a PNG to begin.' };
+  status = { head: 'WAITING FOR SOURCE', text: 'Load an image to begin.' };
 
   fileInput: HTMLInputElement | null = null;
 
@@ -63,6 +65,10 @@ export class AppStore {
 
   targetLabel(): string {
     return { amiga: 'ILBM', sc5: 'SCREEN 5', sc2: 'SCREEN 2', png: 'PNG' }[this.target];
+  }
+
+  sourceLabel(): string {
+    return FORMAT_LABELS[this.sourceType];
   }
 
   // ── settings (trigger reconversion) ───────────────────
@@ -222,26 +228,35 @@ export class AppStore {
   // ── load & export ─────────────────────────────────────
   async loadFile(file: File): Promise<void> {
     this.setStatus('LOADING', `${file.name} is being read…`);
-    const url = URL.createObjectURL(file);
     try {
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const im = new Image();
-        im.onload = () => resolve(im);
-        im.onerror = () => reject(new Error('The image could not be decoded.'));
-        im.src = url;
-      });
-      const c = document.createElement('canvas');
-      c.width = img.naturalWidth;
-      c.height = img.naturalHeight;
-      c.getContext('2d')!.drawImage(img, 0, 0);
-      this.source = c;
+      const format = await detectFormat(file);
+      if (format === 'png') {
+        const url = URL.createObjectURL(file);
+        try {
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const im = new Image();
+            im.onload = () => resolve(im);
+            im.onerror = () => reject(new Error('The image could not be decoded.'));
+            im.src = url;
+          });
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          c.getContext('2d')!.drawImage(img, 0, 0);
+          this.source = c;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      } else {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        this.source = decodeImage(bytes, format);
+      }
+      this.sourceType = format;
       this.views = { original: { zoom: 1, x: 0, y: 0 }, output: { zoom: 1, x: 0, y: 0 } };
       this.selection = null;
       this.reconvert();
     } catch (e) {
       this.setStatus('LOAD ERROR', e instanceof Error ? e.message : 'Something went wrong.');
-    } finally {
-      URL.revokeObjectURL(url);
     }
   }
 

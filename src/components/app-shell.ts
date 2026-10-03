@@ -39,7 +39,7 @@ export class AppShell extends LitElement {
   render() {
     return html`
       <pf-menu-bar></pf-menu-bar>
-      <input id="file" type="file" accept="image/png,image/*" @change=${this.onFileChange} />
+      <input id="file" type="file" accept="image/png,.png,.iff,.ilbm,.lbm,.sc5,.sc2" @change=${this.onFileChange} />
       <div class="app">
         <pf-side-bar></pf-side-bar>
         <main class="main">

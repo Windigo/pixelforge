@@ -1,6 +1,14 @@
 import { LitElement, html } from 'lit';
 import { ditherValue } from '../core/dither';
 import { store, StoreController } from '../state/store';
+import type { Target } from '../core/types';
+
+const TARGETS: { id: Target; label: string }[] = [
+  { id: 'amiga', label: 'AMIGA IFF' },
+  { id: 'sc5', label: 'MSX SCREEN 5' },
+  { id: 'sc2', label: 'MSX SCREEN 2' },
+  { id: 'png', label: 'PIXELART PNG' },
+];
 
 type Drag = {
   type: 'pan' | 'draw';
@@ -45,11 +53,11 @@ export class PreviewPane extends LitElement {
     const srcCanvas = kind === 'original' ? store.source : (store.result?.preview ?? null);
     const empty = !srcCanvas;
     const title = kind === 'original' ? 'ORIGINAL' : `${store.targetLabel()} PREVIEW`;
-    const tag = kind === 'original' ? 'PNG' : store.targetLabel();
+    const tag = kind === 'original' ? store.sourceLabel() : store.targetLabel();
     const meta =
       kind === 'original'
         ? store.source
-          ? `PNG · ${store.source.width} × ${store.source.height}`
+          ? `${store.sourceLabel()} · ${store.source.width} × ${store.source.height}`
           : '—'
         : store.result
           ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${store.result.palette.length} CL`
@@ -58,7 +66,21 @@ export class PreviewPane extends LitElement {
 
     return html`
       <section class="window">
-        <div class="window-head">▦▦▦ ${title} <small>${tag}</small></div>
+        <div class="window-head">
+          <span class="head-title">▦▦▦ ${title}</span>
+          ${kind === 'original'
+            ? html`<small>${tag}</small>`
+            : html`
+                <div class="head-actions">
+                  ${TARGETS.map(
+                    (t) => html`
+                      <button class=${store.target === t.id ? 'fmt active' : 'fmt'} @click=${() => store.setTarget(t.id)}>${t.label}</button>
+                    `,
+                  )}
+                  <button class="fmt save" ?disabled=${!store.result} @click=${() => store.export()}>💾 SAVE</button>
+                </div>
+              `}
+        </div>
         <div
           class="canvas-wrap"
           @pointerdown=${(e: PointerEvent) => this.onPointerDown(e)}
@@ -77,7 +99,7 @@ export class PreviewPane extends LitElement {
           <canvas class="brush-cursor" hidden></canvas>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
-              ? html`LOAD A PNG<small>click or drag a PNG here</small>`
+              ? html`LOAD AN IMAGE<small>click or drag an image here</small>`
               : html`WAITING FOR SOURCE<small>indexed preview</small>`}
           </div>
         </div>
