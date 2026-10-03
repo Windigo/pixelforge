@@ -21,7 +21,6 @@ export class PreviewPane extends LitElement {
   kind: 'original' | 'output' = 'original';
   private drag: Drag | null = null;
   private lastPointer: PointerEvent | null = null;
-  private ditherCvs: HTMLCanvasElement | null = null;
 
   constructor() {
     super();
@@ -75,7 +74,7 @@ export class PreviewPane extends LitElement {
         >
           <canvas></canvas>
           <div class="grid-overlay" hidden></div>
-          <div class="brush-cursor" hidden></div>
+          <canvas class="brush-cursor" hidden></canvas>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
               ? html`LOAD A PNG<small>click or drag a PNG here</small>`
@@ -168,7 +167,7 @@ export class PreviewPane extends LitElement {
   }
 
   private updateCursor(e: PointerEvent): void {
-    const cursor = this.querySelector('.brush-cursor') as HTMLElement | null;
+    const cursor = this.querySelector('.brush-cursor') as HTMLCanvasElement | null;
     if (!cursor) return;
     const canvas = this.canvas();
     const show =
@@ -184,50 +183,53 @@ export class PreviewPane extends LitElement {
     const p = this.point(e, canvas!);
     const zoom = store.views[this.kind].zoom;
     const r = store.brushSize;
-    const size = Math.max(1, (r * 2 + 1) * zoom);
+    const size = r * 2 + 1;
     const wrap = this.querySelector('.canvas-wrap') as HTMLElement;
     const cr = canvas!.getBoundingClientRect();
     const wr = wrap.getBoundingClientRect();
     cursor.hidden = false;
     cursor.style.left = `${cr.left - wr.left + (p.x - r) * zoom}px`;
     cursor.style.top = `${cr.top - wr.top + (p.y - r) * zoom}px`;
-    cursor.style.width = `${size}px`;
-    cursor.style.height = `${size}px`;
-    const palette = store.result?.palette ?? [];
-    const c = palette[store.fg] ?? [0, 0, 0];
-    if (store.mode === 'eraser') {
-      cursor.style.background =
-        'conic-gradient(var(--check1) 25%, var(--check2) 0 50%, var(--check1) 0 75%, var(--check2) 0) 0 0 / 100% 100%';
-    } else if (store.mode === 'dither') {
-      cursor.style.background = `url(${this.ditherPreview(p.x, p.y)}) center / 100% 100% no-repeat`;
-    } else {
-      cursor.style.background = `rgb(${c[0]},${c[1]},${c[2]})`;
-    }
+    cursor.style.width = `${size * zoom}px`;
+    cursor.style.height = `${size * zoom}px`;
+    this.drawBrushPreview(cursor, p.x, p.y);
   }
 
-  private ditherPreview(cx: number, cy: number): string {
+  private drawBrushPreview(cvs: HTMLCanvasElement, cx: number, cy: number): void {
     const r = store.brushSize;
     const size = r * 2 + 1;
-    const [a, b] = store.ditherManual ? [store.fg, store.bg] : store.sampleColors(cx, cy, r);
-    const palette = store.result?.palette ?? [];
-    const ca = palette[a] ?? [0, 0, 0];
-    const cb = palette[b] ?? [0, 0, 0];
-    const cvs = this.ditherCvs ?? (this.ditherCvs = document.createElement('canvas'));
     cvs.width = size;
     cvs.height = size;
     const ctx = cvs.getContext('2d')!;
     const img = ctx.createImageData(size, size);
+    const palette = store.result?.palette ?? [];
+    const fg = palette[store.fg] ?? [0, 0, 0];
+    const bg = palette[store.bg] ?? [0, 0, 0];
+    const [a, b] = store.mode === 'dither' && !store.ditherManual ? store.sampleColors(cx, cy, r) : [store.fg, store.bg];
+    const ca = palette[a] ?? fg;
+    const cb = palette[b] ?? bg;
+    const inside = (x: number, y: number): boolean => x * x + y * y <= r * r;
     for (let dy = 0; dy < size; dy++) {
       const ly = dy - r;
       for (let dx = 0; dx < size; dx++) {
         const lx = dx - r;
         const o = (dy * size + dx) * 4;
-        if (lx * lx + ly * ly > r * r) {
+        if (!inside(lx, ly)) {
           img.data[o + 3] = 0;
           continue;
         }
-        const useA = ditherValue(store.ditherPattern, cx + lx, cy + ly) < store.ditherLevel;
-        const col = useA ? ca : cb;
+        let col: number[];
+        if (store.mode === 'pencil') {
+          col = fg;
+        } else if (store.mode === 'eraser') {
+          col = ((lx + ly) & 1) === 0 ? [204, 204, 204] : [153, 153, 153];
+        } else {
+          const useA = ditherValue(store.ditherPattern, cx + lx, cy + ly) < store.ditherLevel;
+          col = useA ? ca : cb;
+        }
+        if (!inside(lx - 1, ly) || !inside(lx + 1, ly) || !inside(lx, ly - 1) || !inside(lx, ly + 1)) {
+          col = [Math.round(col[0] * 0.55 + 115), Math.round(col[1] * 0.55 + 115), Math.round(col[2] * 0.55 + 115)];
+        }
         img.data[o] = col[0];
         img.data[o + 1] = col[1];
         img.data[o + 2] = col[2];
@@ -235,7 +237,6 @@ export class PreviewPane extends LitElement {
       }
     }
     ctx.putImageData(img, 0, 0);
-    return cvs.toDataURL();
   }
 
   private hideCursor(): void {
