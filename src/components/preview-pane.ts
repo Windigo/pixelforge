@@ -66,6 +66,7 @@ export class PreviewPane extends LitElement {
           @drop=${(e: DragEvent) => this.onDrop(e)}
         >
           <canvas></canvas>
+          <div class="grid-overlay" hidden></div>
           <div class="brush-cursor" hidden></div>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
@@ -109,7 +110,6 @@ export class PreviewPane extends LitElement {
     ctx.drawImage(srcCanvas, 0, 0);
     this.drawSelection(ctx, canvas.width, canvas.height);
     this.drawBox(ctx, canvas.width, canvas.height);
-    if (store.showGrid) this.drawGrid(ctx, canvas.width, canvas.height);
     this.applyView(canvas, canvas.width, canvas.height);
   }
 
@@ -130,9 +130,23 @@ export class PreviewPane extends LitElement {
 
   private applyView(canvas: HTMLCanvasElement, w: number, h: number): void {
     const v = store.views[this.kind];
-    canvas.style.width = `${w * v.zoom}px`;
-    canvas.style.height = `${h * v.zoom}px`;
-    canvas.style.transform = `translate(calc(-50% + ${v.x}px), ${v.y}px)`;
+    const wpx = `${w * v.zoom}px`;
+    const hpx = `${h * v.zoom}px`;
+    const transform = `translate(calc(-50% + ${v.x}px), ${v.y}px)`;
+    canvas.style.width = wpx;
+    canvas.style.height = hpx;
+    canvas.style.transform = transform;
+
+    const overlay = this.querySelector('.grid-overlay') as HTMLElement | null;
+    if (overlay) {
+      overlay.style.width = wpx;
+      overlay.style.height = hpx;
+      overlay.style.transform = transform;
+      const step = Math.max(1, Math.round(8 / v.zoom));
+      const size = v.zoom * step;
+      overlay.style.backgroundSize = `${size}px ${size}px`;
+      overlay.hidden = !store.showGrid;
+    }
   }
 
   private drawBox(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -141,25 +155,6 @@ export class PreviewPane extends LitElement {
     ctx.strokeStyle = 'rgba(255, 200, 61, 0.9)';
     ctx.lineWidth = 1 / zoom;
     ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-    ctx.restore();
-  }
-
-  private drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const zoom = store.views[this.kind].zoom;
-    const step = Math.max(1, Math.round(8 / zoom));
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-    ctx.lineWidth = 1 / zoom;
-    ctx.beginPath();
-    for (let x = step; x < w; x += step) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-    }
-    for (let y = step; y < h; y += step) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-    }
-    ctx.stroke();
     ctx.restore();
   }
 
