@@ -347,12 +347,15 @@ export class AppStore {
       const data: string[] = [];
       for (let i = 0; i < 16; i++) {
         const c = pal[i] ?? [0, 0, 0];
-        data.push(`${c[0] >> 5},${c[2] >> 5},${c[1] >> 5}`);
+        const r = c[0] >> 5;
+        const g = c[1] >> 5;
+        const b = c[2] >> 5;
+        data.push(String(r + g * 8 + b * 64));
       }
       lines.push('20 FOR I=0 TO 15');
-      lines.push('30 READ R,G,B');
-      lines.push('40 COLOR I');
-      lines.push('50 COLOR=(R,G,B)');
+      lines.push('30 READ C');
+      lines.push('40 VDP(9)=I');
+      lines.push('50 VDP(10)=C');
       lines.push('60 NEXT I');
       lines.push(`70 BLOAD "${fname}",S`);
       lines.push('80 IF INKEY$="" THEN 80');
