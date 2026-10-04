@@ -1,20 +1,44 @@
 import { MSX1_PALETTE } from '../core/msx';
 import type { RGB } from '../core/types';
 
-export type SourceFormat = 'png' | 'iff' | 'sc5' | 'sc2';
+export type SourceFormat = 'png' | 'iff' | 'sc5' | 'sc2' | 'pal';
 
 export const FORMAT_LABELS: Record<SourceFormat, string> = {
   png: 'PNG',
   iff: 'IFF',
   sc5: 'SCREEN 5',
   sc2: 'SCREEN 2',
+  pal: 'PALETTE',
 };
+
+export interface DecodedImage {
+  indexed: Uint8Array;
+  palette: RGB[];
+  width: number;
+  height: number;
+  transparentZero: boolean;
+}
+
+/** Parse een MSX2 .pal-bestand (16 × 2 bytes, 3-bit RGB) naar een RGB-palet. */
+export function parsePal(bytes: Uint8Array): RGB[] {
+  const palette: RGB[] = [];
+  for (let i = 0; i < 16; i++) {
+    const b0 = bytes[i * 2] ?? 0;
+    const b1 = bytes[i * 2 + 1] ?? 0;
+    const r = b0 & 7;
+    const b = (b0 >> 4) & 7;
+    const g = b1 & 7;
+    palette.push([Math.round((r * 255) / 7), Math.round((g * 255) / 7), Math.round((b * 255) / 7)]);
+  }
+  return palette;
+}
 
 export async function detectFormat(file: File): Promise<SourceFormat> {
   const name = file.name.toLowerCase();
   if (name.endsWith('.ilbm') || name.endsWith('.iff') || name.endsWith('.lbm')) return 'iff';
   if (name.endsWith('.sc5')) return 'sc5';
   if (name.endsWith('.sc2')) return 'sc2';
+  if (name.endsWith('.pal')) return 'pal';
   if (name.endsWith('.png')) return 'png';
   const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   if (buf[0] === 0x89 && buf[1] === 0x50) return 'png';
@@ -23,7 +47,7 @@ export async function detectFormat(file: File): Promise<SourceFormat> {
   return 'png';
 }
 
-function canvasFromIndexed(
+export function indexedToCanvas(
   indexed: Uint8Array,
   palette: RGB[],
   w: number,
@@ -52,14 +76,14 @@ function canvasFromIndexed(
   return c;
 }
 
-/** Decode een niet-PNG bron (IFF/SC5/SC2) naar een canvas. */
-export function decodeImage(bytes: Uint8Array, format: SourceFormat): HTMLCanvasElement {
+/** Decode een niet-PNG bron (IFF/SC5/SC2) naar indexed-data + palet. */
+export function decodeImage(bytes: Uint8Array, format: SourceFormat): DecodedImage {
   if (format === 'iff') return decodeIlbm(bytes);
   if (format === 'sc5') return decodeSc5(bytes);
   return decodeSc2(bytes);
 }
 
-function decodeIlbm(bytes: Uint8Array): HTMLCanvasElement {
+function decodeIlbm(bytes: Uint8Array): DecodedImage {
   let w = 0;
   let h = 0;
   let planes = 1;
@@ -136,10 +160,10 @@ function decodeIlbm(bytes: Uint8Array): HTMLCanvasElement {
       }
     }
   }
-  return canvasFromIndexed(indexed, palette, w, h, masking === 1);
+  return { indexed, palette, width: w, height: h, transparentZero: masking === 1 };
 }
 
-function decodeSc5(bytes: Uint8Array): HTMLCanvasElement {
+function decodeSc5(bytes: Uint8Array): DecodedImage {
   const W = 256;
   const H = 212;
   const data = bytes[0] === 0xfe ? bytes.slice(7) : bytes;
@@ -148,10 +172,10 @@ function decodeSc5(bytes: Uint8Array): HTMLCanvasElement {
     indexed[i * 2] = data[i] >> 4;
     indexed[i * 2 + 1] = data[i] & 15;
   }
-  return canvasFromIndexed(indexed, MSX1_PALETTE, W, H, true);
+  return { indexed, palette: MSX1_PALETTE, width: W, height: H, transparentZero: true };
 }
 
-function decodeSc2(bytes: Uint8Array): HTMLCanvasElement {
+function decodeSc2(bytes: Uint8Array): DecodedImage {
   const W = 256;
   const H = 192;
   const data = bytes[0] === 0xfe ? bytes.slice(7) : bytes;
@@ -170,5 +194,5 @@ function decodeSc2(bytes: Uint8Array): HTMLCanvasElement {
       }
     }
   }
-  return canvasFromIndexed(indexed, MSX1_PALETTE, W, H, true);
+  return { indexed, palette: MSX1_PALETTE, width: W, height: H, transparentZero: true };
 }

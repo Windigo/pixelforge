@@ -7,7 +7,7 @@ import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
 import { buildIlbm, buildPng, buildSc2, buildSc5, downloadFiles, type FileOutput } from '../export/exporters';
 import { buildDisk, sanitize83, type DiskFile } from '../export/disk';
-import { decodeImage, detectFormat, FORMAT_LABELS, type SourceFormat } from '../import/importers';
+import { decodeImage, detectFormat, FORMAT_LABELS, indexedToCanvas, parsePal, type DecodedImage, type SourceFormat } from '../import/importers';
 import { createSubdir, hasFsAccess, loadDirHandle, pickDirectory, writeFiles, type SaveFile } from './fs';
 
 type Listener = () => void;
@@ -16,6 +16,7 @@ export class AppStore {
   source: HTMLCanvasElement | null = null;
   result: ConvertResult | null = null;
   sourceType: SourceFormat = 'png';
+  sourceDecoded: DecodedImage | null = null;
 
   target: Target = 'amiga';
   msx1 = true;
@@ -243,6 +244,11 @@ export class AppStore {
     this.setStatus('LOADING', `${file.name} is being read…`);
     try {
       const format = await detectFormat(file);
+      if (format === 'pal') {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        this.applyPalette(parsePal(bytes));
+        return;
+      }
       if (format === 'png') {
         const url = URL.createObjectURL(file);
         try {
@@ -257,12 +263,15 @@ export class AppStore {
           c.height = img.naturalHeight;
           c.getContext('2d')!.drawImage(img, 0, 0);
           this.source = c;
+          this.sourceDecoded = null;
         } finally {
           URL.revokeObjectURL(url);
         }
       } else {
         const bytes = new Uint8Array(await file.arrayBuffer());
-        this.source = decodeImage(bytes, format);
+        const decoded = decodeImage(bytes, format);
+        this.sourceDecoded = decoded;
+        this.source = indexedToCanvas(decoded.indexed, decoded.palette, decoded.width, decoded.height, decoded.transparentZero);
       }
       this.sourceType = format;
       this.views = { original: { zoom: 1, x: 0, y: 0 }, output: { zoom: 1, x: 0, y: 0 } };
@@ -271,6 +280,18 @@ export class AppStore {
     } catch (e) {
       this.setStatus('LOAD ERROR', e instanceof Error ? e.message : 'Something went wrong.');
     }
+  }
+
+  private applyPalette(palette: RGB[]): void {
+    const d = this.sourceDecoded;
+    if (!d) {
+      this.setStatus('PALETTE ERROR', 'Load a SCREEN 5 / SCREEN 2 / IFF image first, then the .pal.');
+      return;
+    }
+    d.palette = palette;
+    this.source = indexedToCanvas(d.indexed, palette, d.width, d.height, d.transparentZero);
+    this.setStatus('PALETTE LOADED', 'Palette toegepast op het beeld.');
+    this.reconvert();
   }
 
   private buildSaveFiles(): Promise<FileOutput[]> {
