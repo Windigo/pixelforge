@@ -8,4 +8,5 @@ import './components/resolution-controls';
 import './components/tools-bar';
 import './components/palette-swatches';
 import './components/preview-pane';
+import './components/save-dialog';
 import './components/tooltip';

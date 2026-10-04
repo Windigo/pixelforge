@@ -236,6 +236,29 @@ pf-preview-pane { display: block; }
 }
 .tip-bubble[hidden] { display: none; }
 
+/* save dialog */
+.dialog-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(8, 11, 17, 0.72);
+  display: grid; place-items: center;
+  backdrop-filter: blur(2px);
+}
+.dialog {
+  width: min(420px, calc(100vw - 40px));
+  background: #1b2637; border: 2px solid #526078;
+  box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.45);
+  padding: 18px 20px; border-radius: 4px;
+}
+.dialog h3 { margin: 0 0 14px; font-size: 14px; color: var(--yellow); letter-spacing: 0.5px; }
+.dialog .row { margin: 10px 0; }
+.dialog input[type='text'] {
+  flex: 1; background: #111927; border: 1px solid #61708a;
+  color: var(--ink); padding: 7px 9px; font: inherit; border-radius: 3px;
+  min-width: 0;
+}
+.dialog .check { margin: 9px 0; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }
   aside { border-right: 0; border-bottom: 2px solid #45536a; }

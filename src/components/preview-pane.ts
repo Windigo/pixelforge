@@ -77,7 +77,7 @@ export class PreviewPane extends LitElement {
                       <button class=${store.target === t.id ? 'fmt active' : 'fmt'} @click=${() => store.setTarget(t.id)}>${t.label}</button>
                     `,
                   )}
-                  <button class="fmt save" ?disabled=${!store.result} @click=${() => store.export()}>💾 SAVE</button>
+                  <button class="fmt save" ?disabled=${!store.result} @click=${() => store.openSaveDialog()}>💾 SAVE</button>
                 </div>
               `}
         </div>

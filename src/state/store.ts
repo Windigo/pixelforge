@@ -5,8 +5,10 @@ import { convert } from '../core/convert';
 import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
-import { exportIlbm, exportPng, exportSc2, exportSc5 } from '../export/exporters';
+import { buildIlbm, buildPng, buildSc2, buildSc5, downloadFiles, type FileOutput } from '../export/exporters';
+import { buildDisk, sanitize83, type DiskFile } from '../export/disk';
 import { decodeImage, detectFormat, FORMAT_LABELS, type SourceFormat } from '../import/importers';
+import { createSubdir, hasFsAccess, loadDirHandle, pickDirectory, writeFiles, type SaveFile } from './fs';
 
 type Listener = () => void;
 
@@ -46,6 +48,14 @@ export class AppStore {
   status = { head: 'WAITING FOR SOURCE', text: 'Load an image to begin.' };
 
   fileInput: HTMLInputElement | null = null;
+
+  saveDialogOpen = false;
+  saveFiles: FileOutput[] = [];
+  saveDir: FileSystemDirectoryHandle | null = null;
+  saveDirName = '';
+  saveName = '';
+  saveIncludePal = false;
+  saveMakeDisk = false;
 
   private listeners = new Set<Listener>();
 
@@ -111,6 +121,9 @@ export class AppStore {
 
   // ── view/interaction (no reconversion) ─────────────────
   setMode(m: ToolMode): void { this.mode = m; this.notify(); }
+  setSaveName(v: string): void { this.saveName = v; this.notify(); }
+  setSaveIncludePal(v: boolean): void { this.saveIncludePal = v; this.notify(); }
+  setSaveMakeDisk(v: boolean): void { this.saveMakeDisk = v; this.notify(); }
   setFg(i: number): void { this.fg = i; this.notify(); }
   setBg(i: number): void { this.bg = i; this.notify(); }
   setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
@@ -260,23 +273,88 @@ export class AppStore {
     }
   }
 
-  export(): void {
+  private buildSaveFiles(): Promise<FileOutput[]> {
+    const r = this.result!;
+    if (this.target === 'amiga') return Promise.resolve(buildIlbm(r, this.selection, this.planes));
+    if (this.target === 'sc5') return Promise.resolve(buildSc5(r));
+    if (this.target === 'sc2') return Promise.resolve(buildSc2(r));
+    return buildPng(r, this.selection);
+  }
+
+  async openSaveDialog(): Promise<void> {
     if (!this.result) return;
-    const r = this.result;
-    if (this.target === 'amiga') {
-      const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
-      exportIlbm(r, this.selection, this.planes);
-      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px ILBM downloaded.`);
-    } else if (this.target === 'sc5') {
-      exportSc5(r);
-      this.setStatus('EXPORTED', `SCREEN 5 · ${r.width}×${r.height}px · .sc5 (256×212) + .pal downloaded.`);
-    } else if (this.target === 'sc2') {
-      exportSc2(r, this.msx1);
-      this.setStatus('EXPORTED', `SCREEN 2 · ${r.width}×${r.height}px · .sc2 (256×192)${this.msx1 ? '' : ' + .pal'} downloaded.`);
-    } else {
-      const s = this.selection ?? { x: 0, y: 0, w: r.width, h: r.height };
-      exportPng(r, this.selection);
-      this.setStatus('EXPORTED', `${s.w || r.width}×${s.h || r.height}px pixelart-PNG downloaded.`);
+    const files = await this.buildSaveFiles();
+    this.saveFiles = files;
+    if (!hasFsAccess()) {
+      downloadFiles(files.map((f) => ({ name: `pixelforge${f.ext}`, data: f.data })));
+      this.setStatus('EXPORTED', 'Gedownload (deze browser ondersteunt geen map-keuze).');
+      return;
+    }
+    this.saveDialogOpen = true;
+    this.saveName = '';
+    this.saveIncludePal = this.target === 'sc5' || (this.target === 'sc2' && !this.msx1);
+    this.saveMakeDisk = false;
+    this.notify();
+    const h = await loadDirHandle();
+    if (h) {
+      this.saveDir = h;
+      this.saveDirName = h.name;
+      this.notify();
+    }
+  }
+
+  closeSaveDialog(): void {
+    this.saveDialogOpen = false;
+    this.notify();
+  }
+
+  async chooseSaveDir(): Promise<void> {
+    const h = await pickDirectory();
+    if (h) {
+      this.saveDir = h;
+      this.saveDirName = h.name;
+      this.notify();
+    }
+  }
+
+  private basicLoader(baseName: string, ext: string): string {
+    const screen = this.target === 'sc2' ? 2 : 5;
+    const fname = sanitize83(`${baseName}.${ext}`);
+    return [`10 SCREEN ${screen}`, `20 BLOAD "${fname}",S`, `30 IF INKEY$="" THEN 30`, `40 END`, ''].join('\r\n');
+  }
+
+  async doSave(): Promise<void> {
+    const baseName = this.saveName.trim();
+    if (!baseName) {
+      this.setStatus('SAVE ERROR', 'Geef een naam op.');
+      return;
+    }
+    const dir = this.saveDir;
+    if (!dir) {
+      this.setStatus('SAVE ERROR', 'Kies eerst een map.');
+      return;
+    }
+    const includePal = this.saveIncludePal;
+    const makeDisk = this.saveMakeDisk;
+    try {
+      const sub = await createSubdir(dir, baseName);
+      const files = this.saveFiles.filter((f) => f.ext !== '.pal' || includePal);
+      const writes: SaveFile[] = files.map((f) => ({ name: `${baseName}${f.ext}`, data: f.data }));
+
+      if (makeDisk && (this.target === 'sc5' || this.target === 'sc2')) {
+        const diskFiles: DiskFile[] = [];
+        for (const f of files) diskFiles.push({ name: sanitize83(`${baseName}${f.ext}`), data: f.data });
+        const imageExt = this.target === 'sc2' ? 'sc2' : 'sc5';
+        const bas = this.basicLoader(baseName, imageExt);
+        diskFiles.push({ name: sanitize83(`${baseName}.bas`), data: new TextEncoder().encode(bas) });
+        writes.push({ name: `${baseName}.dsk`, data: buildDisk(diskFiles) });
+      }
+
+      await writeFiles(sub, writes);
+      this.setStatus('SAVED', `Opgeslagen in ${dir.name}/${baseName} (${writes.length} bestand${writes.length === 1 ? '' : 'en'}).`);
+      this.closeSaveDialog();
+    } catch (e) {
+      this.setStatus('SAVE ERROR', e instanceof Error ? e.message : 'Opslaan mislukt.');
     }
   }
 

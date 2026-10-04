@@ -47,7 +47,29 @@ function bsave(data: Uint8Array, start: number, run: number): Uint8Array {
   return out;
 }
 
-export function exportIlbm(r: ConvertResult, selection: Selection | null, planes: number): void {
+export interface FileOutput {
+  ext: string;
+  data: Uint8Array;
+  mime?: string;
+}
+
+function concat(arrays: Uint8Array[]): Uint8Array {
+  const total = arrays.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let p = 0;
+  for (const a of arrays) {
+    out.set(a, p);
+    p += a.length;
+  }
+  return out;
+}
+
+/** Fallback: download de bestanden (voor browsers zonder File System Access API). */
+export function downloadFiles(files: { name: string; data: Uint8Array }[]): void {
+  for (const f of files) downloadBytes(f.data, f.name);
+}
+
+export function buildIlbm(r: ConvertResult, selection: Selection | null, planes: number): FileOutput[] {
   const s = selection ?? { x: 0, y: 0, w: r.width, h: r.height };
   const w = s.w || r.width;
   const h = s.h || r.height;
@@ -90,14 +112,11 @@ export function exportIlbm(r: ConvertResult, selection: Selection | null, planes
   const bodyChunks = chunk('BODY', body);
   const all = [...chunk('BMHD', bmhd), ...chunk('CMAP', cmap), ...bodyChunks];
   const size = 4 + all.reduce((n, a) => n + a.length, 0);
-  const file = new Blob(
-    [bytes('FORM'), u32(size), bytes('ILBM'), ...all] as unknown as BlobPart[],
-    { type: 'application/octet-stream' },
-  );
-  downloadBlob(file, 'pixelforge.ilbm');
+  const data = concat([bytes('FORM'), u32(size), bytes('ILBM'), ...all]);
+  return [{ ext: '.ilbm', data, mime: 'application/octet-stream' }];
 }
 
-export function exportPng(r: ConvertResult, selection: Selection | null): void {
+export async function buildPng(r: ConvertResult, selection: Selection | null): Promise<FileOutput[]> {
   const s = selection ?? { x: 0, y: 0, w: r.width, h: r.height };
   const w = s.w || r.width;
   const h = s.h || r.height;
@@ -107,12 +126,14 @@ export function exportPng(r: ConvertResult, selection: Selection | null): void {
   const ctx = c.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(r.preview, s.x, s.y, w, h, 0, 0, w, h);
-  c.toBlob((b) => {
-    if (b) downloadBlob(b, 'pixelforge.png');
-  }, 'image/png');
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    c.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG export failed.'))), 'image/png'),
+  );
+  const data = new Uint8Array(await blob.arrayBuffer());
+  return [{ ext: '.png', data, mime: 'image/png' }];
 }
 
-export function exportSc5(r: ConvertResult): void {
+export function buildSc5(r: ConvertResult): FileOutput[] {
   const W = 256;
   const H = 212;
   const bitmap = new Uint8Array((W * H) / 2);
@@ -123,11 +144,13 @@ export function exportSc5(r: ConvertResult): void {
       bitmap[(y * W + x) / 2] = (i1 << 4) | i2;
     }
   }
-  downloadBytes(bsave(bitmap, 0x0000, 0x0000), 'pixelforge.sc5');
-  downloadBytes(msxPaletteBytes(r.palette), 'pixelforge.pal');
+  return [
+    { ext: '.sc5', data: bsave(bitmap, 0x0000, 0x0000) },
+    { ext: '.pal', data: msxPaletteBytes(r.palette) },
+  ];
 }
 
-export function exportSc2(r: ConvertResult, msx1: boolean): void {
+export function buildSc2(r: ConvertResult): FileOutput[] {
   const at = (y: number, x: number): number =>
     y < r.height && x < r.width ? r.indexed[y * r.width + x] : 0;
 
@@ -186,7 +209,7 @@ export function exportSc2(r: ConvertResult, msx1: boolean): void {
   vram.set(nameTable, 0x1800);
   vram.set(colorTable, 0x2000);
 
-  downloadBytes(bsave(vram, 0x0000, 0x0000), 'pixelforge.sc2');
-  if (!msx1) downloadBytes(msxPaletteBytes(r.palette), 'pixelforge.pal');
+  const files: FileOutput[] = [{ ext: '.sc2', data: bsave(vram, 0x0000, 0x0000) }, { ext: '.pal', data: msxPaletteBytes(r.palette) }];
   if (overflow) console.warn('SCREEN 2: meer dan 256 unieke patronen');
+  return files;
 }
