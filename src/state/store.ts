@@ -347,7 +347,7 @@ export class AppStore {
       const data: string[] = [];
       for (let i = 0; i < 16; i++) {
         const c = pal[i] ?? [0, 0, 0];
-        data.push(`${c[0] >> 5},${c[1] >> 5},${c[2] >> 5}`);
+        data.push(`${c[0] >> 5},${c[2] >> 5},${c[1] >> 5}`);
       }
       lines.push('20 FOR I=0 TO 15');
       lines.push('30 READ R,G,B');
