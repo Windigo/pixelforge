@@ -152,6 +152,12 @@ select { font: inherit; background: #273348; color: var(--ink); border: 1px soli
 .res-bar input[inputmode='numeric'] {
   width: 68px; background: #f5f5f5; border: 0; padding: 4px; color: #111; font: 12px monospace;
 }
+.ratio-lock { width: 28px; height: 26px; padding: 3px; display: grid; place-items: center; }
+.ratio-lock.active { color: var(--yellow); border-color: #ffe394; }
+.ratio-lock svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ratio-tip { position: relative; display: inline-flex; }
+.ratio-tip .ratio-bubble { display: none; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+.ratio-tip:hover .ratio-bubble, .ratio-tip:focus-within .ratio-bubble { display: block; }
 pf-preview-pane { display: block; }
 .window {
   min-width: 0; border: 2px solid #48566d; background: #121925;
@@ -198,7 +204,6 @@ pf-preview-pane { display: block; }
   justify-self: center;
 }
 .load-btn:hover { border-color: var(--yellow); color: #fff; }
-.canvas-wrap.droppable { cursor: pointer; }
 .dropping { outline: 2px dashed var(--yellow); outline-offset: -6px; }
 
 .window-foot {

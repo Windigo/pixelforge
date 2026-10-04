@@ -1,7 +1,6 @@
 import type { ConvertResult } from '../core/convert';
-import { rgbDist } from '../core/color';
 import { msxPaletteBytes } from '../core/msx';
-import type { Selection } from '../core/types';
+import type { RGB, Selection } from '../core/types';
 
 function downloadBlob(blob: Blob, name: string): void {
   const a = document.createElement('a');
@@ -136,16 +135,20 @@ export async function buildPng(r: ConvertResult, selection: Selection | null): P
 export function buildSc5(r: ConvertResult): FileOutput[] {
   const W = 256;
   const H = 212;
-  const bitmap = new Uint8Array((W * H) / 2);
+  // SCREEN 5 BLOAD files are raw VRAM dumps from 0000h through 769Fh:
+  // bitmap at 0000h and the BASIC palette storage table at 7680h.
+  const vram = new Uint8Array(0x76a0);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x += 2) {
       const i1 = y < r.height && x < r.width ? r.indexed[y * r.width + x] : 0;
       const i2 = y < r.height && x + 1 < r.width ? r.indexed[y * r.width + x + 1] : 0;
-      bitmap[(y * W + x) / 2] = (i1 << 4) | i2;
+      vram[(y * W + x) / 2] = (i1 << 4) | i2;
     }
   }
+  const palette = msxPaletteBytes(r.palette);
+  vram.set(palette, 0x7680);
   return [
-    { ext: '.sc5', data: bsave(bitmap, 0x0000, 0x0000) },
+    { ext: '.sc5', data: bsave(vram, 0x0000, 0x769f) },
     { ext: '.pal', data: msxPaletteBytes(r.palette) },
   ];
 }
@@ -155,55 +158,121 @@ export function buildSc2(r: ConvertResult): FileOutput[] {
     y < r.height && x < r.width ? r.indexed[y * r.width + x] : 0;
 
   const nameTable = new Uint8Array(768);
-  const colorTable = new Uint8Array(768 * 8);
-  const patterns: Uint8Array[] = [];
+  const colorTable = new Uint8Array(0x1800);
+  const bandPatterns: Uint8Array[][] = [[], [], []];
+  const bandColors: Uint8Array[][] = [[], [], []];
   const pIndex = new Map<string, number>();
   let overflow = false;
+  const distance = (a: RGB, b: RGB): number => {
+    const dr = a[0] - b[0];
+    const dg = a[1] - b[1];
+    const db = a[2] - b[2];
+    // Approximate perceived brightness and chroma, which matters more than
+    // raw RGB distance when choosing only two colors for each 8-pixel row.
+    return 0.30 * dr * dr + 0.59 * dg * dg + 0.11 * db * db;
+  };
 
   for (let by = 0; by < 24; by++) {
+    const band = Math.floor(by / 8);
     for (let bx = 0; bx < 32; bx++) {
       const block = new Uint8Array(8);
+      const colorBytes = new Uint8Array(8);
       for (let row = 0; row < 8; row++) {
         const counts = new Map<number, number>();
         for (let px = 0; px < 8; px++) {
-          const pi = at(by * 8 + row, bx * 8 + px);
-          counts.set(pi, (counts.get(pi) ?? 0) + 1);
+          const index = at(by * 8 + row, bx * 8 + px);
+          counts.set(index, (counts.get(index) ?? 0) + 1);
         }
-        const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-        const fg = entries[0][0];
-        let bg = entries.length > 1 ? entries[1][0] : fg;
-        if (bg === fg) bg = (fg + 1) & 15;
+        let fg = 0;
+        let bg = 0;
+        let bestError = Infinity;
+        let bestCovered = -1;
+        // Color 0 is transparent, not a second black. Only consider it when
+        // this pixel row actually contains transparent source pixels.
+        const firstColor = counts.has(0) ? 0 : 1;
+        for (let a = firstColor; a < r.palette.length; a++) {
+          for (let b = a; b < r.palette.length; b++) {
+            let error = 0;
+            let covered = 0;
+            for (const [index, amount] of counts) {
+              error += amount * Math.min(distance(r.palette[index], r.palette[a]), distance(r.palette[index], r.palette[b]));
+              if (index === a || index === b) covered += amount;
+            }
+            // Tie-break duplicate RGB colors (transparent 0 and black 1) by
+            // preferring the pair that preserves the source color indices.
+            if (error < bestError || (error === bestError && covered > bestCovered)) {
+              bestError = error;
+              bestCovered = covered;
+              fg = a;
+              bg = b;
+            }
+          }
+        }
 
         let byte = 0;
         for (let px = 0; px < 8; px++) {
           const pi = at(by * 8 + row, bx * 8 + px);
-          const dFG = rgbDist(r.palette[pi], r.palette[fg]);
-          const dBG = rgbDist(r.palette[pi], r.palette[bg]);
-          if (dFG <= dBG) byte |= 0x80 >> px;
+          const dFG = distance(r.palette[pi], r.palette[fg]);
+          const dBG = distance(r.palette[pi], r.palette[bg]);
+          if (pi === fg || (pi !== bg && dFG <= dBG)) byte |= 0x80 >> px;
         }
         block[row] = byte;
-        colorTable[by * 256 + bx * 8 + row] = (fg << 4) | bg;
+        colorBytes[row] = (fg << 4) | bg;
+        // SCREEN 2 stores foreground in the high nibble and background in
+        // the low nibble; bit 1 selects foreground, bit 0 background.
       }
 
-      const key = block.join(',');
+      const key = `${band}:${block.join(',')}:${colorBytes.join(',')}`;
       let pi = pIndex.get(key);
       if (pi === undefined) {
-        if (patterns.length >= 256) {
+        const bandCount = bandPatterns[band].length;
+        if (bandCount >= 256) {
           overflow = true;
-          pi = patterns.length - 1;
+          let nearestPattern = 0;
+          let nearestError = Infinity;
+          for (let candidate = 0; candidate < bandCount; candidate++) {
+            const pattern = bandPatterns[band][candidate];
+            const candidateColors = bandColors[band][candidate];
+            let error = 0;
+            for (let row = 0; row < 8; row++) {
+              // A SCREEN 2 pattern code owns both its pattern and color rows.
+              const colorByte = candidateColors[row];
+              const fg = r.palette[colorByte >> 4];
+              const bg = r.palette[colorByte & 15];
+              for (let px = 0; px < 8; px++) {
+                const source = r.palette[at(by * 8 + row, bx * 8 + px)];
+                const chosen = pattern[row] & (0x80 >> px) ? fg : bg;
+                error += distance(source, chosen);
+              }
+            }
+            if (error < nearestError) {
+              nearestError = error;
+              nearestPattern = candidate;
+            }
+          }
+          pi = nearestPattern;
         } else {
-          pi = patterns.length;
+          pi = bandCount;
           pIndex.set(key, pi);
-          patterns.push(block);
+          bandPatterns[band].push(block);
+          bandColors[band].push(colorBytes);
         }
       }
       nameTable[by * 32 + bx] = pi;
     }
   }
 
-  const patGen = new Uint8Array(2048);
-  patterns.forEach((p, i) => patGen.set(p, i * 8));
+  const patGen = new Uint8Array(0x1800);
+  for (let band = 0; band < 3; band++) {
+    bandPatterns[band].forEach((p, i) => {
+      const address = band * 0x800 + i * 8;
+      patGen.set(p, address);
+      colorTable.set(bandColors[band][i], address);
+    });
+  }
 
+  // Standard SCREEN 2 dumps span pattern/name/color VRAM through 37FFh.
+  // Keep the sprite pattern area (3800h–3FFFh) outside this image file.
   const vram = new Uint8Array(0x3800);
   vram.set(patGen, 0x0000);
   vram.set(nameTable, 0x1800);

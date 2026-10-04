@@ -29,6 +29,7 @@ export class AppStore {
   sampling: Sampling = 'center';
   widthInput = '';
   heightInput = '';
+  aspectRatioLocked = true;
 
   pinned: RGB[] = [];
   selection: Selection | null = null;
@@ -92,21 +93,41 @@ export class AppStore {
   setResample(v: boolean): void { this.resample = v; this.reconvert(); }
   setScale(n: number): void {
     this.scale = n;
+    this.widthInput = '';
+    this.heightInput = '';
     this.resample = true;
     this.reconvert();
   }
   setSampling(s: Sampling): void { this.sampling = s; this.reconvert(); }
 
   setSize(axis: 'width' | 'height', value: string): void {
-    if (axis === 'width') {
-      this.widthInput = value;
+    const trimmed = value.trim();
+    const size = Number(trimmed);
+    if (!trimmed || !Number.isFinite(size) || size <= 0) {
+      this.widthInput = '';
       this.heightInput = '';
     } else {
-      this.heightInput = value;
-      this.widthInput = '';
+      const requested = Math.max(1, Math.min(8192, Math.round(size)));
+      const source = this.source;
+      if (axis === 'width') {
+        this.widthInput = String(requested);
+        this.heightInput = this.aspectRatioLocked && source
+          ? String(Math.max(1, Math.round((requested * source.height) / source.width)))
+          : '';
+      } else {
+        this.heightInput = String(requested);
+        this.widthInput = this.aspectRatioLocked && source
+          ? String(Math.max(1, Math.round((requested * source.width) / source.height)))
+          : '';
+      }
     }
     this.resample = true;
     this.reconvert();
+  }
+
+  toggleAspectRatio(): void {
+    this.aspectRatioLocked = !this.aspectRatioLocked;
+    this.notify();
   }
 
   togglePin(c: RGB): void {
@@ -343,28 +364,25 @@ export class AppStore {
     const fname = sanitize83(`${baseName}.${ext}`);
     const lines: string[] = [`10 SCREEN ${screen}`];
     if (screen === 5) {
-      const pal = this.result?.palette ?? [];
-      const data: string[] = [];
-      for (let i = 0; i < 16; i++) {
-        const c = pal[i] ?? [0, 0, 0];
-        const r = c[0] >> 5;
-        const g = c[1] >> 5;
-        const b = c[2] >> 5;
-        data.push(String(r + g * 8 + b * 64));
-      }
-      lines.push('20 FOR I=0 TO 15');
-      lines.push('30 READ C');
-      lines.push('40 VDP(9)=I');
-      lines.push('50 VDP(10)=C');
-      lines.push('60 NEXT I');
-      lines.push(`70 BLOAD "${fname}",S`);
+      lines.push(`20 BLOAD "${fname}",S`);
+      // The top-left pixel is palette index 0. BASIC treats palette 0 as
+      // transparent by default, so enable its normal solid-color behavior.
+      lines.push('30 VDP(9)=VDP(9) OR &H20');
+      lines.push('40 COLOR=RESTORE');
+      lines.push('50 IF INKEY$="" THEN 50');
+      lines.push('60 END');
+    } else {
+      // Select the standard SCREEN 2 color table and all three pattern/color
+      // thirds explicitly before loading the VRAM dump.
+      lines.push('20 VDP(3)=255');
+      lines.push('30 VDP(4)=3');
+      // Color 0 is transparent; use palette color 1 (black) as the backdrop.
+      lines.push('40 COLOR 15,1');
+      lines.push(`50 BLOAD "${fname}",S`);
+      lines.push('60 REM VDP(7) bepaalt de achtergrondkleur; 1 is zwart.');
+      lines.push('70 VDP(7)=1');
       lines.push('80 IF INKEY$="" THEN 80');
       lines.push('90 END');
-      lines.push(`100 DATA ${data.join(',')}`);
-    } else {
-      lines.push(`20 BLOAD "${fname}",S`);
-      lines.push('30 IF INKEY$="" THEN 30');
-      lines.push('40 END');
     }
     return lines.join('\r\n') + '\r\n';
   }
@@ -410,7 +428,7 @@ export class AppStore {
       return;
     }
     try {
-      this.result = convert(this.source, {
+      const converted = convert(this.source, {
         target: this.target,
         msx1: this.msx1,
         planes: this.planes,
@@ -424,6 +442,16 @@ export class AppStore {
         widthInput: this.widthInput,
         heightInput: this.heightInput,
       });
+      if (this.target === 'sc2') {
+        // Show the actual two-colors-per-8-pixel-row SCREEN 2 result instead
+        // of the unconstrained indexed source preview. Color 0 is transparent
+        // on hardware; this loader uses color 1 as its backdrop.
+        const sc2 = buildSc2(converted)[0];
+        const decoded = decodeImage(sc2.data, 'sc2');
+        converted.indexed = decoded.indexed;
+        converted.preview = indexedToCanvas(decoded.indexed, converted.palette, decoded.width, decoded.height, true);
+      }
+      this.result = converted;
       this.selection = null;
       this.setStatus(
         'CONVERTED',

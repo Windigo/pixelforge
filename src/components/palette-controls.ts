@@ -52,10 +52,12 @@ export class PaletteControls extends LitElement {
               `}
 
         <div class="row">
-          <label>MERGE COLOURS${fixedPalette ? html` <pf-tooltip text="Disabled: with a fixed MSX1 palette the 16 colours are fixed, so there is nothing to merge. Turn 'FIXED MSX1 PALETTE' off to enable this."></pf-tooltip>` : ''}</label>
+          <label>MERGE COLOURS <pf-tooltip text=${fixedPalette
+            ? 'Voegt vergelijkbare brontinten samen tot de meest gebruikte nabije MSX1-kleur. Het hardwarepalet blijft vast; hogere waarden voegen meer tinten samen.'
+            : 'Voegt vergelijkbare bronkleuren samen voordat het uitvoerpalet wordt opgebouwd. Hogere waarden voegen meer tinten samen.'}></pf-tooltip></label>
           <b>${store.merge}</b>
         </div>
-        <input type="range" min="0" max="80" .value=${String(store.merge)} ?disabled=${fixedPalette} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />
+        <input type="range" min="0" max="80" .value=${String(store.merge)} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />
 
         <label class="check">
           <input type="checkbox" .checked=${store.dither} @change=${(e: Event) => store.setDither((e.target as HTMLInputElement).checked)} />

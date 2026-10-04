@@ -178,14 +178,22 @@ function decodeSc5(bytes: Uint8Array): DecodedImage {
 function decodeSc2(bytes: Uint8Array): DecodedImage {
   const W = 256;
   const H = 192;
+  // A SCREEN 2 .SC2 may be either a raw VRAM dump or a BASIC BSAVE file.
+  // BSAVE's header gives the VRAM start address; normalize both forms to
+  // address zero so the table offsets below stay unambiguous.
+  const start = bytes[0] === 0xfe ? bytes[1] | (bytes[2] << 8) : 0;
   const data = bytes[0] === 0xfe ? bytes.slice(7) : bytes;
+  const atVram = (address: number): number => data[address - start] ?? 0;
   const indexed = new Uint8Array(W * H);
   for (let by = 0; by < 24; by++) {
+    const band = Math.floor(by / 8);
     for (let bx = 0; bx < 32; bx++) {
-      const name = data[0x1800 + by * 32 + bx];
+      const name = atVram(0x1800 + by * 32 + bx);
       for (let row = 0; row < 8; row++) {
-        const pattern = data[name * 8 + row];
-        const ce = data[0x2000 + by * 256 + bx * 8 + row];
+        const pattern = atVram(band * 0x800 + name * 8 + row);
+        // SCREEN 2 color rows are addressed by the pattern number in the
+        // name table, just like pattern bytes, rather than by screen position.
+        const ce = atVram(0x2000 + band * 0x800 + name * 8 + row);
         const fg = ce >> 4;
         const bg = ce & 15;
         for (let px = 0; px < 8; px++) {

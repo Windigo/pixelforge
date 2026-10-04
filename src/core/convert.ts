@@ -1,4 +1,4 @@
-import { nearest, quantize } from './color';
+import { nearest, quantize, rgbDist } from './color';
 import { MSX1_PALETTE } from './msx';
 import { resampleTo } from './resample';
 import type { RGB, Sampling, Target } from './types';
@@ -69,6 +69,28 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
           ...quantize(src.data, targetMaxColors(o) - 1, o.merge, o.pinned),
         ] as RGB[]);
 
+  // With the fixed MSX1 palette, merge nearby used hardware colors into the
+  // most-used color in each group. This keeps output colors on the real TMS9918
+  // palette while giving the merge slider a useful effect in SCREEN 2.
+  let fixedColorMap: Uint8Array | null = null;
+  if (o.target === 'sc2' && o.msx1 && o.merge > 0) {
+    const usage = new Uint32Array(palette.length);
+    for (let i = 0; i < src.data.length; i += 4) {
+      if (src.data[i + 3] >= 128) usage[nearest(src.data[i], src.data[i + 1], src.data[i + 2], palette)]++;
+    }
+    const order = Array.from({ length: palette.length - 1 }, (_, i) => i + 1)
+      .filter((index) => usage[index] > 0)
+      .sort((a, b) => usage[b] - usage[a]);
+    fixedColorMap = Uint8Array.from({ length: palette.length }, (_, index) => index);
+    const representatives: number[] = [];
+    const tolerance = o.merge * o.merge * 1.3;
+    for (const index of order) {
+      const representative = representatives.find((candidate) => rgbDist(palette[index], palette[candidate]) <= tolerance);
+      if (representative === undefined) representatives.push(index);
+      else fixedColorMap[index] = representative;
+    }
+  }
+
   const indexed = new Uint8Array(work.width * work.height);
   const dst = ctx.createImageData(work.width, work.height);
   const floats = Float32Array.from(src.data);
@@ -80,7 +102,8 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
         dst.data[i + 3] = 0;
         continue;
       }
-      const n = nearest(floats[i], floats[i + 1], floats[i + 2], palette);
+      const nearestIndex = nearest(floats[i], floats[i + 1], floats[i + 2], palette);
+      const n = fixedColorMap?.[nearestIndex] ?? nearestIndex;
       const c = palette[n];
       indexed[y * work.width + x] = n;
       dst.data[i] = c[0];

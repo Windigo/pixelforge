@@ -60,7 +60,7 @@ export class PreviewPane extends LitElement {
           ? `${store.sourceLabel()} · ${store.source.width} × ${store.source.height}`
           : '—'
         : store.result
-          ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${store.result.palette.length} CL`
+          ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${store.target === 'sc2' ? new Set(Array.from(store.result.indexed, (index) => index === 0 ? 1 : index)).size : store.result.palette.length} CL`
           : '—';
     const selText = store.selection ? `SELECTION: ${store.selection.w} × ${store.selection.h} PX` : 'SELECTION: —';
 
@@ -69,7 +69,7 @@ export class PreviewPane extends LitElement {
         <div class="window-head">
           <span class="head-title">▦▦▦ ${title}</span>
           ${kind === 'original'
-            ? html`<small>${tag}</small>`
+            ? html`<div class="head-actions">${store.source ? html`<small>${tag}</small>` : ''}<button class="fmt save" @click=${() => store.fileInput?.click()}>📂 LOAD AN IMAGE</button></div>`
             : html`
                 <div class="head-actions">
                   ${TARGETS.map(
@@ -87,7 +87,6 @@ export class PreviewPane extends LitElement {
           @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
           @pointerup=${(e: PointerEvent) => this.onPointerUp(e)}
           @pointercancel=${(e: PointerEvent) => this.onPointerUp(e)}
-          @click=${() => this.onClick()}
           @contextmenu=${(e: Event) => e.preventDefault()}
           @pointerleave=${() => this.hideCursor()}
           @dragover=${(e: DragEvent) => this.onDragOver(e)}
@@ -99,7 +98,7 @@ export class PreviewPane extends LitElement {
           <canvas class="brush-cursor" hidden></canvas>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
-              ? html`<button class="load-btn" @click=${() => store.fileInput?.click()}>📂 LOAD AN IMAGE</button><small>or drag & drop an image here</small>`
+              ? html`<small>or drag & drop an image here</small>`
               : html`WAITING FOR SOURCE<small>indexed preview</small>`}
           </div>
         </div>
@@ -403,10 +402,6 @@ export class PreviewPane extends LitElement {
     }
   }
 
-  private onClick(): void {
-    if (this.kind === 'original') store.fileInput?.click();
-  }
-
   private onDragOver(e: DragEvent): void {
     if (this.kind !== 'original') return;
     e.preventDefault();
@@ -427,4 +422,3 @@ export class PreviewPane extends LitElement {
 }
 
 customElements.define('pf-preview-pane', PreviewPane);
-

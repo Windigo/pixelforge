@@ -32,7 +32,9 @@ export function msxPaletteBytes(palette: RGB[]): Uint8Array {
     const r = c[0] >> 5;
     const g = c[1] >> 5;
     const b = c[2] >> 5;
-    out[i * 2] = (r & 7) | ((b & 7) << 4);
+    // VDP palette bytes are (R * 16 + B, G): red occupies the high nibble,
+    // blue the low nibble.
+    out[i * 2] = ((r & 7) << 4) | (b & 7);
     out[i * 2 + 1] = g & 7;
   }
   return out;
