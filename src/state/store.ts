@@ -321,31 +321,9 @@ export class AppStore {
     const screen = this.target === 'sc2' ? 2 : 5;
     const fname = sanitize83(`${baseName}.${ext}`);
     const lines: string[] = [`10 SCREEN ${screen}`];
-    if (screen === 5) {
-      // MSX2 SCREEN 5: eigen 16-kleurenpalet laden via VDP-commando's
-      const pal = this.result?.palette ?? [];
-      const data: string[] = [];
-      for (let i = 0; i < 16; i++) {
-        const c = pal[i] ?? [0, 0, 0];
-        const r = c[0] >> 5;
-        const g = c[1] >> 5;
-        const b = c[2] >> 5;
-        data.push(String(r | (g << 3) | (b << 6)));
-      }
-      lines.push('20 FOR I=0 TO 15');
-      lines.push('30 READ C');
-      lines.push('40 VDP(9)=I');
-      lines.push('50 VDP(10)=C');
-      lines.push('60 NEXT I');
-      lines.push(`70 BLOAD "${fname}",S`);
-      lines.push('80 IF INKEY$="" THEN 80');
-      lines.push('90 END');
-      lines.push(`100 DATA ${data.join(',')}`);
-    } else {
-      lines.push(`20 BLOAD "${fname}",S`);
-      lines.push('30 IF INKEY$="" THEN 30');
-      lines.push('40 END');
-    }
+    lines.push(`20 BLOAD "${fname}",S`);
+    lines.push('30 IF INKEY$="" THEN 30');
+    lines.push('40 END');
     return lines.join('\r\n') + '\r\n';
   }
 
