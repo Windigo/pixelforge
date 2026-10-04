@@ -38,6 +38,9 @@ function scaledDims(
   source: HTMLCanvasElement,
   o: ConvertOptions,
 ): { w: number; h: number } | null {
+  // MSX-schermen hebben een vaste resolutie → altijd vullen.
+  if (o.target === 'sc5') return { w: 256, h: 212 };
+  if (o.target === 'sc2') return { w: 256, h: 192 };
   if (!o.resample) return null;
   const w = Number(o.widthInput) || Math.max(1, Math.round((source.width * o.scale) / 100));
   const h = Number(o.heightInput) || Math.max(1, Math.round((source.height * o.scale) / 100));
