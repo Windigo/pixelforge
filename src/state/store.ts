@@ -342,9 +342,27 @@ export class AppStore {
     const screen = this.target === 'sc2' ? 2 : 5;
     const fname = sanitize83(`${baseName}.${ext}`);
     const lines: string[] = [`10 SCREEN ${screen}`];
-    lines.push(`20 BLOAD "${fname}",S`);
-    lines.push('30 IF INKEY$="" THEN 30');
-    lines.push('40 END');
+    if (screen === 5) {
+      const pal = this.result?.palette ?? [];
+      const data: string[] = [];
+      for (let i = 0; i < 16; i++) {
+        const c = pal[i] ?? [0, 0, 0];
+        data.push(`${c[0] >> 5},${c[1] >> 5},${c[2] >> 5}`);
+      }
+      lines.push('20 FOR I=0 TO 15');
+      lines.push('30 READ R,G,B');
+      lines.push('40 COLOR I');
+      lines.push('50 COLOR=(R,G,B)');
+      lines.push('60 NEXT I');
+      lines.push(`70 BLOAD "${fname}",S`);
+      lines.push('80 IF INKEY$="" THEN 80');
+      lines.push('90 END');
+      lines.push(`100 DATA ${data.join(',')}`);
+    } else {
+      lines.push(`20 BLOAD "${fname}",S`);
+      lines.push('30 IF INKEY$="" THEN 30');
+      lines.push('40 END');
+    }
     return lines.join('\r\n') + '\r\n';
   }
 
