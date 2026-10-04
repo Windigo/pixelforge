@@ -41,12 +41,14 @@ function setFatEntry(fat: Uint8Array, index: number, value: number): void {
 export function buildDisk(files: DiskFile[]): Uint8Array {
   const disk = new Uint8Array(SECTORS * BYTES_PER_SECTOR);
 
-  // ── boot sector (BPB) ────────────────────────────────
+  // ── MSX boot sector + BPB ────────────────────────────
   const dv = new DataView(disk.buffer);
   disk[0] = 0xeb;
-  disk[1] = 0x3c;
+  // MSX floppy boot sectors conventionally start with EB FE 90. The
+  // 0xFE jump displacement also prevents an x86 PC from trying to boot it.
+  disk[1] = 0xfe;
   disk[2] = 0x90;
-  disk.set(new TextEncoder().encode('MSXDISK '), 3);
+  disk.set(new TextEncoder().encode('MSX_04  '), 3);
   dv.setUint16(11, BYTES_PER_SECTOR, true);
   disk[13] = SECTORS_PER_CLUSTER;
   dv.setUint16(14, RESERVED, true);
@@ -57,16 +59,10 @@ export function buildDisk(files: DiskFile[]): Uint8Array {
   dv.setUint16(22, SECTORS_PER_FAT, true);
   dv.setUint16(24, 9, true);
   dv.setUint16(26, 2, true);
-  dv.setUint32(28, 0, true);
-  dv.setUint32(32, SECTORS, true);
-  disk[36] = 0;
-  disk[37] = 0;
-  disk[38] = 0x29;
-  dv.setUint32(39, 0x12345678, true);
-  disk.set(new TextEncoder().encode('PIXELFORGE '), 43);
-  disk.set(new TextEncoder().encode('FAT12   '), 54);
-  disk[510] = 0x55;
-  disk[511] = 0xaa;
+  // The MSX disk ROM calls boot code at C01Eh when byte 0 is EB/E9. Return
+  // immediately so a data-only image falls through to Disk BASIC instead of
+  // executing zero-filled memory and hanging during startup.
+  disk[0x1e] = 0xc9; // RET
 
   // ── FAT-tabellen ─────────────────────────────────────
   const fat = new Uint8Array(SECTORS_PER_FAT * BYTES_PER_SECTOR);
