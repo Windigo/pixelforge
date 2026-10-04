@@ -330,7 +330,7 @@ export class AppStore {
         const r = c[0] >> 5;
         const g = c[1] >> 5;
         const b = c[2] >> 5;
-        data.push(String(r | (b << 4) | (g << 8)));
+        data.push(String(r | (g << 3) | (b << 6)));
       }
       lines.push('20 FOR I=0 TO 15');
       lines.push('30 READ C');
