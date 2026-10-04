@@ -12,6 +12,7 @@ export function sanitize83(name: string): string {
   let ext = dot >= 0 ? up.slice(dot + 1) : '';
   base = base.slice(0, 8);
   ext = ext.slice(0, 3);
+  if (!base) base = 'IMG';
   return ext ? `${base}.${ext}` : base;
 }
 
@@ -21,7 +22,7 @@ const SECTORS_PER_CLUSTER = 2;
 const RESERVED = 1;
 const NUM_FATS = 2;
 const ROOT_ENTRIES = 112;
-const SECTORS_PER_FAT = 6;
+const SECTORS_PER_FAT = 3;
 const ROOT_SECTORS = Math.ceil((ROOT_ENTRIES * 32) / BYTES_PER_SECTOR);
 const DATA_START = RESERVED + NUM_FATS * SECTORS_PER_FAT + ROOT_SECTORS;
 const CLUSTER_BYTES = BYTES_PER_SECTOR * SECTORS_PER_CLUSTER;
@@ -57,6 +58,7 @@ export function buildDisk(files: DiskFile[]): Uint8Array {
   dv.setUint16(24, 9, true);
   dv.setUint16(26, 2, true);
   dv.setUint32(28, 0, true);
+  dv.setUint32(32, SECTORS, true);
   disk[36] = 0;
   disk[37] = 0;
   disk[38] = 0x29;
