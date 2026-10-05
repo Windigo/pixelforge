@@ -36,7 +36,7 @@ export class PaletteControls extends LitElement {
                 <input type="range" min="2" max="256" .value=${String(store.colors)} @input=${(e: Event) => store.setColors(Number((e.target as HTMLInputElement).value))} />
               `
             : html`
-                <div class="row"><b>15 COLOURS + TRANSPARENT</b></div>
+                <div class="row"><b>${t === 'c64' ? '16 COLOURS (FIXED PALETTE)' : '15 COLOURS + TRANSPARENT'}</b></div>
                 ${t === 'sc2'
                   ? html`
                       <span class="check">
@@ -48,7 +48,7 @@ export class PaletteControls extends LitElement {
                       </span>
                     `
                   : ''}
-                <p class="hint">${t === 'sc5' ? 'SCREEN 5 · 256×212 · 16 colours (4 bits/pixel)' : 'SCREEN 2 · 256×192 · 16 colours · max 2 colours per 8×1 row'}</p>
+                <p class="hint">${t === 'sc5' ? 'SCREEN 5 · 256×212 · 16 colours (4 bits/pixel)' : t === 'c64' ? 'C64 multicolor · 160×200 · max 4 colours per 8×8 cell' : 'SCREEN 2 · 256×192 · 16 colours · max 2 colours per 8×1 row'}</p>
               `}
 
         <div class="row">

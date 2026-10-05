@@ -13,10 +13,10 @@ export function rgbDist(a: RGB, b: RGB): number {
   return r * r + g * g + q * q;
 }
 
-export function nearest(r: number, g: number, b: number, palette: RGB[]): number {
-  let best = 1;
+export function nearest(r: number, g: number, b: number, palette: RGB[], start = 1): number {
+  let best = start;
   let score = Infinity;
-  for (let i = 1; i < palette.length; i++) {
+  for (let i = start; i < palette.length; i++) {
     const c = palette[i];
     const d = (r - c[0]) ** 2 + (g - c[1]) ** 2 + (b - c[2]) ** 2;
     if (d < score) {

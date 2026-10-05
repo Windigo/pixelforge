@@ -1,5 +1,6 @@
 import type { ConvertResult } from '../core/convert';
 import { msxPaletteBytes } from '../core/msx';
+import { quantizeC64Multicolor } from '../core/c64';
 import type { RGB, Selection } from '../core/types';
 
 function downloadBlob(blob: Blob, name: string): void {
@@ -283,4 +284,18 @@ export function buildSc2(r: ConvertResult): FileOutput[] {
   const files: FileOutput[] = [{ ext: '.sc2', data: bsave(vram, 0x0000, 0x0000) }, { ext: '.pal', data: msxPaletteBytes(r.palette) }];
   if (overflow) console.warn('SCREEN 2: meer dan 256 unieke patronen');
   return files;
+}
+
+/** C64 multicolor bitmap als Koala Painter-bestand (.koa). */
+export function buildC64(r: ConvertResult): FileOutput[] {
+  const m = quantizeC64Multicolor(r.indexed, r.width, r.height);
+  // Koala: 2-byte load-adres ($6000) + 8000 bitmap + 1000 screen-RAM + 1000 color-RAM + 1 achtergrond.
+  const data = new Uint8Array(2 + 8000 + 1000 + 1000 + 1);
+  data[0] = 0x00;
+  data[1] = 0x60;
+  data.set(m.bitmap, 2);
+  data.set(m.screenRam, 2 + 8000);
+  data.set(m.colorRam, 2 + 8000 + 1000);
+  data[2 + 8000 + 1000 + 1000] = m.background;
+  return [{ ext: '.koa', data, mime: 'application/octet-stream' }];
 }

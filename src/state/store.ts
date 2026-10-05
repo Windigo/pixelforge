@@ -5,7 +5,8 @@ import { convert } from '../core/convert';
 import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
-import { buildIlbm, buildPng, buildSc2, buildSc5, downloadFiles, type FileOutput } from '../export/exporters';
+import { buildIlbm, buildPng, buildSc2, buildSc5, buildC64, downloadFiles, type FileOutput } from '../export/exporters';
+import { C64_PALETTE, quantizeC64Multicolor } from '../core/c64';
 import { buildDisk, sanitize83, type DiskFile } from '../export/disk';
 import { decodeImage, detectFormat, FORMAT_LABELS, indexedToCanvas, parsePal, type DecodedImage, type SourceFormat } from '../import/importers';
 import { createSubdir, hasFsAccess, loadDirHandle, pickDirectory, writeFiles, type SaveFile } from './fs';
@@ -80,7 +81,7 @@ export class AppStore {
   }
 
   targetLabel(): string {
-    return { amiga: 'ILBM', sc5: 'SCREEN 5', sc2: 'SCREEN 2', png: 'PNG' }[this.target];
+    return { amiga: 'ILBM', sc5: 'SCREEN 5', sc2: 'SCREEN 2', png: 'PNG', c64: 'C64' }[this.target];
   }
 
   sourceLabel(): string {
@@ -440,6 +441,7 @@ export class AppStore {
     if (this.target === 'amiga') return Promise.resolve(buildIlbm(r, this.selection, this.planes));
     if (this.target === 'sc5') return Promise.resolve(buildSc5(r));
     if (this.target === 'sc2') return Promise.resolve(buildSc2(r));
+    if (this.target === 'c64') return Promise.resolve(buildC64(r));
     return buildPng(r, this.selection);
   }
 
@@ -580,6 +582,13 @@ export class AppStore {
         converted.width = decoded.width;
         converted.height = decoded.height;
         converted.preview = indexedToCanvas(decoded.indexed, converted.palette, decoded.width, decoded.height, true);
+      } else if (this.target === 'c64') {
+        // Toon het echte multicolor-resultaat (3 globale + 1 lokale kleur per cel).
+        const m = quantizeC64Multicolor(converted.indexed, converted.width, converted.height);
+        converted.indexed = m.indexed;
+        converted.width = 160;
+        converted.height = 200;
+        converted.preview = indexedToCanvas(m.indexed, C64_PALETTE, 160, 200, false);
       } else if (this.target === 'sc5') {
         // Toon het echte 256×212-resultaat (beeld opgevuld met kleurindex 0).
         // Index 0 tonen we transparant, net als de rest van de editor, zodat de

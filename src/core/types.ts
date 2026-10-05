@@ -1,4 +1,4 @@
-export type Target = 'amiga' | 'sc5' | 'sc2' | 'png';
+export type Target = 'amiga' | 'sc5' | 'sc2' | 'png' | 'c64';
 export type ToolMode = 'pencil' | 'eraser' | 'dither' | 'picker' | 'pan' | 'select';
 export type Sampling = 'center' | 'dominant';
 export type RGB = [number, number, number];

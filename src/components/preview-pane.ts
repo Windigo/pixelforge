@@ -7,6 +7,7 @@ const TARGETS: { id: Target; label: string }[] = [
   { id: 'amiga', label: 'AMIGA IFF' },
   { id: 'sc5', label: 'MSX SCREEN 5' },
   { id: 'sc2', label: 'MSX SCREEN 2' },
+  { id: 'c64', label: 'C64 MULTICOLOR' },
   { id: 'png', label: 'PIXELART PNG' },
 ];
 

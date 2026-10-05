@@ -1,5 +1,6 @@
 import { nearest, quantize, rgbDist } from './color';
 import { MSX1_PALETTE } from './msx';
+import { C64_PALETTE } from './c64';
 import { resampleTo } from './resample';
 import type { RGB, Sampling, Target } from './types';
 
@@ -49,6 +50,7 @@ function scaledDims(
   if (!explicitW && !explicitH) {
     if (o.target === 'sc5') scale *= Math.min(1, 256 / source.width, 212 / source.height);
     else if (o.target === 'sc2') scale *= Math.min(1, 256 / source.width, 192 / source.height);
+    else if (o.target === 'c64') scale *= Math.min(1, 160 / source.width, 200 / source.height);
   }
   const w = explicitW || Math.max(1, Math.round(source.width * scale));
   const h = explicitH || Math.max(1, Math.round(source.height * scale));
@@ -72,10 +74,12 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
   const palette =
     o.target === 'sc2' && o.msx1
       ? MSX1_PALETTE.map((c) => [...c] as RGB)
-      : ([
-          [0, 0, 0] as RGB,
-          ...quantize(src.data, targetMaxColors(o) - 1, o.merge, o.pinned),
-        ] as RGB[]);
+      : o.target === 'c64'
+        ? C64_PALETTE.map((c) => [...c] as RGB)
+        : ([
+            [0, 0, 0] as RGB,
+            ...quantize(src.data, targetMaxColors(o) - 1, o.merge, o.pinned),
+          ] as RGB[]);
 
   // With the fixed MSX1 palette, merge nearby used hardware colors into the
   // most-used color in each group. This keeps output colors on the real TMS9918
@@ -110,7 +114,7 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
         dst.data[i + 3] = 0;
         continue;
       }
-      const nearestIndex = nearest(floats[i], floats[i + 1], floats[i + 2], palette);
+      const nearestIndex = nearest(floats[i], floats[i + 1], floats[i + 2], palette, o.target === 'c64' ? 0 : 1);
       const n = fixedColorMap?.[nearestIndex] ?? nearestIndex;
       const c = palette[n];
       indexed[y * work.width + x] = n;
