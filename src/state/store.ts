@@ -33,6 +33,8 @@ export class AppStore {
 
   pinned: RGB[] = [];
   selection: Selection | null = null;
+  clipboard: { w: number; h: number; pixels: Uint8Array } | null = null;
+  moveState: { w: number; h: number; buf: Uint8Array; x: number; y: number; copy: boolean } | null = null;
   mode: ToolMode = 'pan';
   fg = 1;
   bg = 1;
@@ -58,6 +60,7 @@ export class AppStore {
   saveName = '';
   saveIncludePal = false;
   saveMakeDisk = false;
+  saveError = '';
 
   private listeners = new Set<Listener>();
 
@@ -255,6 +258,122 @@ export class AppStore {
     ctx.putImageData(img, 0, 0);
   }
   setSelection(s: Selection | null): void { this.selection = s; this.notify(); }
+
+  // ── selectie: knippen / kopiëren / plakken / verslepen ──────────────
+
+  copySelection(): void {
+    const s = this.selection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    const pixels = new Uint8Array(s.w * s.h);
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) pixels[y * s.w + x] = r.indexed[(s.y + y) * r.width + (s.x + x)];
+    this.clipboard = { w: s.w, h: s.h, pixels };
+    this.setStatus('COPIED', `Selectie gekopieerd (${s.w}×${s.h}).`);
+  }
+
+  cutSelection(): void {
+    const s = this.selection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    this.beginUndo();
+    const pixels = new Uint8Array(s.w * s.h);
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) {
+      const i = (s.y + y) * r.width + (s.x + x);
+      pixels[y * s.w + x] = r.indexed[i];
+      r.indexed[i] = 0;
+    }
+    this.clipboard = { w: s.w, h: s.h, pixels };
+    this.redrawPreview();
+    this.notify();
+  }
+
+  pasteSelection(): void {
+    const c = this.clipboard;
+    const r = this.result;
+    if (!c || !r) return;
+    const x = this.selection ? this.selection.x : 0;
+    const y = this.selection ? this.selection.y : 0;
+    this.beginUndo();
+    for (let py = 0; py < c.h; py++) for (let px = 0; px < c.w; px++) {
+      const idx = c.pixels[py * c.w + px];
+      if (idx === 0) continue; // transparant: niet overschrijven
+      const tx = x + px;
+      const ty = y + py;
+      if (tx < 0 || ty < 0 || tx >= r.width || ty >= r.height) continue;
+      r.indexed[ty * r.width + tx] = idx;
+    }
+    this.selection = { x, y, w: c.w, h: c.h };
+    this.redrawPreview();
+    this.notify();
+  }
+
+  deleteSelection(): void {
+    const s = this.selection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    this.beginUndo();
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) r.indexed[(s.y + y) * r.width + (s.x + x)] = 0;
+    this.redrawPreview();
+    this.notify();
+  }
+
+  /** Til de selectie op voor verslepen. `copy` laat het origineel staan (dupliceren). */
+  beginMoveSelection(copy: boolean): boolean {
+    const s = this.selection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return false;
+    const buf = new Uint8Array(s.w * s.h);
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) buf[y * s.w + x] = r.indexed[(s.y + y) * r.width + (s.x + x)];
+    if (!copy) {
+      // Knippen: maak de oorspronkelijke plek leeg (met undo-punt).
+      this.beginUndo();
+      for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) r.indexed[(s.y + y) * r.width + (s.x + x)] = 0;
+    }
+    this.moveState = { w: s.w, h: s.h, buf, x: s.x, y: s.y, copy };
+    this.redrawPreview();
+    this.notify();
+    return true;
+  }
+
+  moveSelectionTo(x: number, y: number): void {
+    const m = this.moveState;
+    const r = this.result;
+    if (!m || !r) return;
+    m.x = Math.max(0, Math.min(Math.round(x), r.width - m.w));
+    m.y = Math.max(0, Math.min(Math.round(y), r.height - m.h));
+    this.notify();
+  }
+
+  endMoveSelection(): void {
+    const m = this.moveState;
+    const r = this.result;
+    if (!m || !r) return;
+    // Bij dupliceren wordt nu pas de wijziging doorgevoerd → undo-punt hier.
+    if (m.copy) this.beginUndo();
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      const idx = m.buf[y * m.w + x];
+      if (idx === 0) continue; // transparant: niet overschrijven
+      r.indexed[(m.y + y) * r.width + (m.x + x)] = idx;
+    }
+    this.selection = { x: m.x, y: m.y, w: m.w, h: m.h };
+    this.moveState = null;
+    this.redrawPreview();
+    this.notify();
+  }
+
+  /** ESC: selectie opheffen, of een lopende versleping annuleren. */
+  deselect(): void {
+    if (this.moveState) {
+      const wasCopy = this.moveState.copy;
+      this.moveState = null;
+      if (!wasCopy) this.undo();
+      return;
+    }
+    if (this.selection) {
+      this.selection = null;
+      this.notify();
+    }
+  }
   setView(kind: 'original' | 'output', v: ViewState): void {
     this.views[kind] = v;
     this.notify();
@@ -334,6 +453,7 @@ export class AppStore {
     }
     this.saveDialogOpen = true;
     this.saveName = '';
+    this.saveError = '';
     this.saveIncludePal = this.target === 'sc5' || (this.target === 'sc2' && !this.msx1);
     this.saveMakeDisk = false;
     this.notify();
@@ -401,10 +521,11 @@ export class AppStore {
     const includePal = this.saveIncludePal;
     const makeDisk = this.saveMakeDisk;
     try {
-      const sub = await createSubdir(dir, baseName);
       const files = this.saveFiles.filter((f) => f.ext !== '.pal' || includePal);
       const writes: SaveFile[] = files.map((f) => ({ name: `${baseName}${f.ext}`, data: f.data }));
 
+      // Valideer de afmetingen en bouw de .dsk vóórdat de map wordt aangemaakt,
+      // zodat er geen lege map achterblijft bij een te groot beeld.
       if (makeDisk && (this.target === 'sc5' || this.target === 'sc2')) {
         const diskFiles: DiskFile[] = [];
         for (const f of files) diskFiles.push({ name: sanitize83(`${baseName}${f.ext}`), data: f.data });
@@ -414,11 +535,14 @@ export class AppStore {
         writes.push({ name: `${baseName}.dsk`, data: buildDisk(diskFiles) });
       }
 
+      const sub = await createSubdir(dir, baseName);
       await writeFiles(sub, writes);
+      this.saveError = '';
       this.setStatus('SAVED', `Opgeslagen in ${dir.name}/${baseName} (${writes.length} bestand${writes.length === 1 ? '' : 'en'}).`);
       this.closeSaveDialog();
     } catch (e) {
-      this.setStatus('SAVE ERROR', e instanceof Error ? e.message : 'Opslaan mislukt.');
+      this.saveError = e instanceof Error ? e.message : 'Opslaan mislukt.';
+      this.setStatus('SAVE ERROR', this.saveError);
     }
   }
 
@@ -449,10 +573,23 @@ export class AppStore {
         const sc2 = buildSc2(converted)[0];
         const decoded = decodeImage(sc2.data, 'sc2');
         converted.indexed = decoded.indexed;
+        converted.width = decoded.width;
+        converted.height = decoded.height;
+        converted.preview = indexedToCanvas(decoded.indexed, converted.palette, decoded.width, decoded.height, true);
+      } else if (this.target === 'sc5') {
+        // Toon het echte 256×212-resultaat (beeld opgevuld met kleurindex 0).
+        // Index 0 tonen we transparant, net als de rest van de editor, zodat de
+        // opvulling als leeg zichtbaar is.
+        const sc5 = buildSc5(converted)[0];
+        const decoded = decodeImage(sc5.data, 'sc5');
+        converted.indexed = decoded.indexed;
+        converted.width = decoded.width;
+        converted.height = decoded.height;
         converted.preview = indexedToCanvas(decoded.indexed, converted.palette, decoded.width, decoded.height, true);
       }
       this.result = converted;
       this.selection = null;
+      this.moveState = null;
       this.setStatus(
         'CONVERTED',
         `${this.result.width}×${this.result.height}px · ${this.result.palette.length} colours · ready for ${this.targetLabel()} export.`,

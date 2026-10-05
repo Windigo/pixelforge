@@ -38,12 +38,20 @@ function scaledDims(
   source: HTMLCanvasElement,
   o: ConvertOptions,
 ): { w: number; h: number } | null {
-  // MSX-schermen hebben een vaste resolutie → altijd vullen.
-  if (o.target === 'sc5') return { w: 256, h: 212 };
-  if (o.target === 'sc2') return { w: 256, h: 192 };
   if (!o.resample) return null;
-  const w = Number(o.widthInput) || Math.max(1, Math.round((source.width * o.scale) / 100));
-  const h = Number(o.heightInput) || Math.max(1, Math.round((source.height * o.scale) / 100));
+  const explicitW = Number(o.widthInput);
+  const explicitH = Number(o.heightInput);
+  // Gebruikersschaal (1 = 100%). Voor MSX-doelen wordt de afbeelding eerst
+  // proportioneel verkleind tot het grootste formaat dat in het scherm past
+  // (contain, alleen verkleinen — nooit vergroten). Daarna kan de SCALE-slider
+  // hem nog verder verkleinen; de rest wordt in de exporter opgevuld.
+  let scale = o.scale / 100;
+  if (!explicitW && !explicitH) {
+    if (o.target === 'sc5') scale *= Math.min(1, 256 / source.width, 212 / source.height);
+    else if (o.target === 'sc2') scale *= Math.min(1, 256 / source.width, 192 / source.height);
+  }
+  const w = explicitW || Math.max(1, Math.round(source.width * scale));
+  const h = explicitH || Math.max(1, Math.round(source.height * scale));
   return { w: clamp(w, 1, 8192), h: clamp(h, 1, 8192) };
 }
 

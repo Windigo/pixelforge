@@ -39,6 +39,19 @@ function setFatEntry(fat: Uint8Array, index: number, value: number): void {
 }
 
 export function buildDisk(files: DiskFile[]): Uint8Array {
+  // Capaciteitscheck: een 720KB FAT12-disk heeft een beperkt aantal clusters.
+  // Geef een duidelijke fout i.p.v. een cryptische RangeError als iets te groot is.
+  const maxClusters = Math.floor((SECTORS - DATA_START) / SECTORS_PER_CLUSTER);
+  const totalClusters = files.reduce(
+    (n, f) => n + Math.max(1, Math.ceil(f.data.length / CLUSTER_BYTES)),
+    0,
+  );
+  if (totalClusters > maxClusters) {
+    throw new Error(
+      `Bestanden te groot voor een 720KB disk (${totalClusters} clusters nodig, ${maxClusters} beschikbaar). Verklein het beeld met de SCALE-slider.`,
+    );
+  }
+
   const disk = new Uint8Array(SECTORS * BYTES_PER_SECTOR);
 
   // ── MSX boot sector + BPB ────────────────────────────

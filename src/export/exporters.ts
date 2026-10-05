@@ -136,7 +136,9 @@ export function buildSc5(r: ConvertResult): FileOutput[] {
   const W = 256;
   const H = 212;
   // SCREEN 5 BLOAD files are raw VRAM dumps from 0000h through 769Fh:
-  // bitmap at 0000h and the BASIC palette storage table at 7680h.
+  // bitmap at 0000h and the BASIC palette storage table at 7680h. Smaller
+  // source images are padded with color index 0; larger ones are cropped
+  // top-left (no stretching).
   const vram = new Uint8Array(0x76a0);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x += 2) {

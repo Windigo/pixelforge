@@ -11,12 +11,14 @@ const TARGETS: { id: Target; label: string }[] = [
 ];
 
 type Drag = {
-  type: 'pan' | 'draw';
+  type: 'pan' | 'draw' | 'marquee' | 'move';
   id: number;
   x: number;
   y: number;
   px: number;
   py: number;
+  sx: number;
+  sy: number;
   button: number;
   last: { x: number; y: number };
 };
@@ -138,14 +140,17 @@ export class PreviewPane extends LitElement {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(srcCanvas, 0, 0);
     this.drawSelection(ctx, canvas.width, canvas.height);
+    this.drawFloating(ctx);
     this.drawBox(ctx, canvas.width, canvas.height);
     this.applyView(canvas, canvas.width, canvas.height);
   }
 
   private drawSelection(ctx: CanvasRenderingContext2D, srcW: number, srcH: number): void {
-    const s = store.selection;
     const r = store.result;
-    if (!s || !r) return;
+    if (!r) return;
+    // Tijdens verslepen volgt het selectiekader de zwevende positie.
+    const s = store.moveState ?? store.selection;
+    if (!s) return;
     const scaleX = this.kind === 'original' ? srcW / r.width : 1;
     const scaleY = this.kind === 'original' ? srcH / r.height : 1;
     const v = store.views[this.kind];
@@ -155,6 +160,35 @@ export class PreviewPane extends LitElement {
     ctx.setLineDash([4 / v.zoom, 3 / v.zoom]);
     ctx.strokeRect(s.x * scaleX, s.y * scaleY, s.w * scaleX, s.h * scaleY);
     ctx.restore();
+  }
+
+  private drawFloating(ctx: CanvasRenderingContext2D): void {
+    if (this.kind !== 'output') return;
+    const m = store.moveState;
+    const r = store.result;
+    if (!m || !r) return;
+    // Teken via een tijdelijk canvas + drawImage (source-over), zodat
+    // transparante pixels het onderliggende beeld NIET overschrijven.
+    const temp = document.createElement('canvas');
+    temp.width = m.w;
+    temp.height = m.h;
+    const tctx = temp.getContext('2d')!;
+    const img = tctx.createImageData(m.w, m.h);
+    const palette = r.palette;
+    for (let y = 0; y < m.h; y++) {
+      for (let x = 0; x < m.w; x++) {
+        const idx = m.buf[y * m.w + x];
+        const o = (y * m.w + x) * 4;
+        if (idx === 0) continue; // transparant → blijft alpha 0
+        const c = palette[idx] ?? [0, 0, 0];
+        img.data[o] = c[0];
+        img.data[o + 1] = c[1];
+        img.data[o + 2] = c[2];
+        img.data[o + 3] = 255;
+      }
+    }
+    tctx.putImageData(img, 0, 0);
+    ctx.drawImage(temp, m.x, m.y);
   }
 
   private applyView(canvas: HTMLCanvasElement, w: number, h: number): void {
@@ -264,11 +298,24 @@ export class PreviewPane extends LitElement {
     this.lastPointer = null;
   }
 
-  private applyToolCursor(): void {
+  private isOverSelection(p: { x: number; y: number }): boolean {
+    const s = store.selection;
+    return !!s && s.w > 0 && s.h > 0 && p.x >= s.x && p.x < s.x + s.w && p.y >= s.y && p.y < s.y + s.h;
+  }
+
+  private setCanvasCursor(e: PointerEvent | null): void {
     const canvas = this.canvas();
-    if (canvas) {
-      canvas.style.cursor = store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
+    if (!canvas) return;
+    if (store.mode === 'select' && this.kind === 'output' && e) {
+      const p = this.point(e, canvas);
+      canvas.style.cursor = this.isOverSelection(p) ? 'grab' : 'crosshair';
+      return;
     }
+    canvas.style.cursor = store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
+  }
+
+  private applyToolCursor(): void {
+    this.setCanvasCursor(this.lastPointer);
     if (this.lastPointer) this.updateCursor(this.lastPointer);
     else this.hideCursor();
   }
@@ -317,7 +364,7 @@ export class PreviewPane extends LitElement {
     canvas.setPointerCapture?.(e.pointerId);
     if (pan) {
       const v = store.views[this.kind];
-      this.drag = { type: 'pan', id: e.pointerId, x: e.clientX, y: e.clientY, px: v.x, py: v.y, button: 0, last: { x: 0, y: 0 } };
+      this.drag = { type: 'pan', id: e.pointerId, x: e.clientX, y: e.clientY, px: v.x, py: v.y, sx: 0, sy: 0, button: 0, last: { x: 0, y: 0 } };
       canvas.style.cursor = 'grabbing';
       return;
     }
@@ -332,16 +379,35 @@ export class PreviewPane extends LitElement {
       else store.setFg(index);
       return;
     }
+    if (store.mode === 'select') {
+      if (this.kind !== 'output') return;
+      if (e.button !== 0 && e.button !== 2) return;
+      const p = this.point(e, canvas);
+      const s = store.selection;
+      if (s && s.w > 0 && s.h > 0 && p.x >= s.x && p.x < s.x + s.w && p.y >= s.y && p.y < s.y + s.h) {
+        // Binnen de selectie: links = knippen (origineel wordt leeg), rechts = kopiëren (origineel blijft).
+        if (store.beginMoveSelection(e.button === 2)) {
+          this.drag = { type: 'move', id: e.pointerId, x: e.clientX, y: e.clientY, px: s.x, py: s.y, sx: p.x, sy: p.y, button: e.button, last: p };
+          canvas.style.cursor = 'grabbing';
+        }
+      } else if (e.button === 0) {
+        // Lege plek → alleen met links een nieuwe selectie tekenen.
+        store.setSelection({ x: p.x, y: p.y, w: 1, h: 1 });
+        this.drag = { type: 'marquee', id: e.pointerId, x: e.clientX, y: e.clientY, px: p.x, py: p.y, sx: p.x, sy: p.y, button: 0, last: p };
+      }
+      return;
+    }
     if (this.kind !== 'output') return;
     if (e.button !== 0 && e.button !== 2) return;
     const p = this.toIff(this.point(e, canvas));
-    this.drag = { type: 'draw', id: e.pointerId, x: e.clientX, y: e.clientY, px: 0, py: 0, button: e.button, last: p };
+    this.drag = { type: 'draw', id: e.pointerId, x: e.clientX, y: e.clientY, px: 0, py: 0, sx: p.x, sy: p.y, button: e.button, last: p };
     store.beginUndo();
     this.paintAt(p.x, p.y, e.button);
   }
 
   private onPointerMove(e: PointerEvent): void {
     this.lastPointer = e;
+    this.setCanvasCursor(e);
     this.updateCursor(e);
     const d = this.drag;
     if (!d || d.id !== e.pointerId) return;
@@ -350,6 +416,14 @@ export class PreviewPane extends LitElement {
     if (d.type === 'pan') {
       const v = store.views[this.kind];
       store.setView(this.kind, { zoom: v.zoom, x: d.px + e.clientX - d.x, y: d.py + e.clientY - d.y });
+    } else if (d.type === 'move') {
+      const p = this.point(e, canvas);
+      store.moveSelectionTo(d.px + (p.x - d.sx), d.py + (p.y - d.sy));
+    } else if (d.type === 'marquee') {
+      const p = this.point(e, canvas);
+      const x0 = Math.min(d.sx, p.x);
+      const y0 = Math.min(d.sy, p.y);
+      store.setSelection({ x: x0, y: y0, w: Math.max(d.sx, p.x) - x0 + 1, h: Math.max(d.sy, p.y) - y0 + 1 });
     } else {
       const p = this.toIff(this.point(e, canvas));
       this.drawLine(d.last.x, d.last.y, p.x, p.y, d.button);
@@ -359,11 +433,10 @@ export class PreviewPane extends LitElement {
 
   private onPointerUp(e: PointerEvent): void {
     if (!this.drag || this.drag.id !== e.pointerId) return;
+    const wasMove = this.drag.type === 'move';
     this.drag = null;
-    const canvas = this.canvas();
-    if (canvas) {
-      canvas.style.cursor = store.mode === 'pan' ? 'grab' : store.mode === 'picker' ? 'copy' : 'crosshair';
-    }
+    if (wasMove) store.endMoveSelection();
+    this.setCanvasCursor(e);
   }
 
   private paintAt(x: number, y: number, button: number): void {

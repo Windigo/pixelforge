@@ -53,6 +53,8 @@ export class SaveDialog extends LitElement {
 
           <p class="hint">Files: ${files.map((f) => (f.ext === '.pal' && !store.saveIncludePal ? '' : f.ext)).filter(Boolean).join(' · ') || '—'}</p>
 
+          ${store.saveError ? html`<p class="save-error">⚠️ ${store.saveError}</p>` : ''}
+
           <div class="dialog-actions">
             <button class="mbtn" @click=${() => store.closeSaveDialog()}>Cancel</button>
             <button class="mbtn primary" @click=${() => store.doSave()}>Save</button>

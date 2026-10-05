@@ -29,10 +29,18 @@ export class AppShell extends LitElement {
       return;
     }
     const k = e.key.toLowerCase();
+    if (e.metaKey || e.ctrlKey) {
+      if (k === 'c') { e.preventDefault(); store.copySelection(); return; }
+      if (k === 'x') { e.preventDefault(); store.cutSelection(); return; }
+      if (k === 'v') { e.preventDefault(); store.pasteSelection(); return; }
+    }
+    if (k === 'delete' || k === 'backspace') { e.preventDefault(); store.deleteSelection(); return; }
+    if (k === 'escape') { e.preventDefault(); store.deselect(); return; }
     if (k === 'p') store.setMode('pencil');
     else if (k === 'e') store.setMode('eraser');
     else if (k === 'i') store.setMode('picker');
     else if (k === 'd') store.setMode('dither');
+    else if (k === 's') store.setMode('select');
     else if (k === 'h') store.setMode('pan');
   };
 

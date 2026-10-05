@@ -39,6 +39,15 @@ const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
     ],
   },
   {
+    id: 'select',
+    label: 'Select (S)',
+    paths: [
+      'M3 3h18v18H3z',
+      'M9 9l12 12',
+      'M9 9h7v7',
+    ],
+  },
+  {
     id: 'pan',
     label: 'Hand (H)',
     paths: [
@@ -129,7 +138,7 @@ export class ToolsBar extends LitElement {
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
-        <p class="hint">Pencil: left = foreground, right = background · Eraser: transparent · Eyedropper: pick colour · Hand: pan.</p>
+        <p class="hint">Pencil: left = foreground, right = background · Eraser: transparent · Eyedropper: pick colour · Select: drag to select, drag inside to move (Ctrl+C/X/V = copy/cut/paste) · Hand: pan.</p>
       </div>
     `;
   }
