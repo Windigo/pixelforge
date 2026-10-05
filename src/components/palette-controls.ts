@@ -53,8 +53,8 @@ export class PaletteControls extends LitElement {
 
         <div class="row">
           <label>MERGE COLOURS <pf-tooltip text=${fixedPalette
-            ? 'Voegt vergelijkbare brontinten samen tot de meest gebruikte nabije MSX1-kleur. Het hardwarepalet blijft vast; hogere waarden voegen meer tinten samen.'
-            : 'Voegt vergelijkbare bronkleuren samen voordat het uitvoerpalet wordt opgebouwd. Hogere waarden voegen meer tinten samen.'}></pf-tooltip></label>
+            ? 'Merges similar source tints into the most-used nearby MSX1 colour. The hardware palette stays fixed; higher values merge more tints.'
+            : 'Merges similar source colours before building the output palette. Higher values merge more tints.'}></pf-tooltip></label>
           <b>${store.merge}</b>
         </div>
         <input type="range" min="0" max="80" .value=${String(store.merge)} @input=${(e: Event) => store.setMerge(Number((e.target as HTMLInputElement).value))} />

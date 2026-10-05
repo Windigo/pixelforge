@@ -13,8 +13,8 @@ Je laadt een **PNG, IFF (ILBM), SCREEN 5 of SCREEN 2** en exporteert het als:
 - **MSX SCREEN 2** — 256×192, 16 kleuren (VRAM-dump met patroon/kleur/naamtabel)
 - **Pixel-art PNG** — geïndexeerd palet, 2–256 kleuren
 
-Het is een **single-page app, geen backend**. De UI-teksten zijn **Nederlands** —
-houd nieuwe UI-strings in het Nederlands.
+Het is een **single-page app, geen backend**. De UI-teksten zijn **Engels** —
+houd nieuwe UI-strings in het Engels.
 
 ## Tech stack
 

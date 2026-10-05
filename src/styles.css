@@ -33,7 +33,8 @@ body {
 }
 .brand { font-size: 23px; font-weight: 900; color: #fff; }
 .brand b { color: var(--yellow); }
-.ready { margin-left: auto; color: var(--muted); }
+.top-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.ready { color: var(--muted); }
 .ready i {
   display: inline-block; width: 10px; height: 10px;
   background: #76e776; box-shadow: 0 0 12px #76e776; margin-right: 10px;
@@ -264,6 +265,31 @@ pf-preview-pane { display: block; }
 .dialog .check { margin: 9px 0; }
 .save-error { color: #ff9b9b; background: #3a1f24; border: 1px solid #7a3a40; padding: 8px 10px; border-radius: 3px; font-size: 12px; margin: 10px 0 0; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* help dialog */
+.help-dialog {
+  width: min(680px, calc(100vw - 40px));
+  max-height: min(86vh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+.help-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.help-head h3 { margin: 0; font-size: 14px; color: var(--yellow); letter-spacing: 0.5px; }
+.help-body { overflow: auto; padding-right: 4px; border-top: 1px solid #43516a; }
+.help-body h4 { font-size: 11px; margin: 16px 0 8px; color: var(--cyan); letter-spacing: 0.5px; }
+.help-body h4:first-child { margin-top: 12px; }
+.help-row { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; font-size: 12px; }
+.help-row kbd, .kbd-row {
+  flex: 0 0 auto; width: 132px;
+  font: 11px/1 ui-monospace, monospace; color: var(--yellow);
+  background: #111927; border: 1px solid #61708a; border-bottom-width: 2px;
+  padding: 3px 7px; border-radius: 3px; text-align: center;
+}
+.help-row span:last-child { color: var(--muted); }
+.help-key { display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.help-icon { flex: 0 0 auto; width: 16px; height: 16px; }
+.help-icon svg { width: 100%; height: 100%; display: block; }
+.help-desc { color: var(--muted); }
 
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }

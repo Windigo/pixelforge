@@ -61,6 +61,7 @@ export class AppStore {
   saveIncludePal = false;
   saveMakeDisk = false;
   saveError = '';
+  helpOpen = false;
 
   private listeners = new Set<Listener>();
 
@@ -268,7 +269,7 @@ export class AppStore {
     const pixels = new Uint8Array(s.w * s.h);
     for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) pixels[y * s.w + x] = r.indexed[(s.y + y) * r.width + (s.x + x)];
     this.clipboard = { w: s.w, h: s.h, pixels };
-    this.setStatus('COPIED', `Selectie gekopieerd (${s.w}×${s.h}).`);
+    this.setStatus('COPIED', `Selection copied (${s.w}×${s.h}).`);
   }
 
   cutSelection(): void {
@@ -430,7 +431,7 @@ export class AppStore {
     }
     d.palette = palette;
     this.source = indexedToCanvas(d.indexed, palette, d.width, d.height, d.transparentZero);
-    this.setStatus('PALETTE LOADED', 'Palette toegepast op het beeld.');
+    this.setStatus('PALETTE LOADED', 'Palette applied to the image.');
     this.reconvert();
   }
 
@@ -448,7 +449,7 @@ export class AppStore {
     this.saveFiles = files;
     if (!hasFsAccess()) {
       downloadFiles(files.map((f) => ({ name: `pixelforge${f.ext}`, data: f.data })));
-      this.setStatus('EXPORTED', 'Gedownload (deze browser ondersteunt geen map-keuze).');
+      this.setStatus('EXPORTED', 'Downloaded (this browser does not support folder selection).');
       return;
     }
     this.saveDialogOpen = true;
@@ -469,6 +470,9 @@ export class AppStore {
     this.saveDialogOpen = false;
     this.notify();
   }
+
+  openHelp(): void { this.helpOpen = true; this.notify(); }
+  closeHelp(): void { this.helpOpen = false; this.notify(); }
 
   async chooseSaveDir(): Promise<void> {
     const h = await pickDirectory();
@@ -499,7 +503,7 @@ export class AppStore {
       // Color 0 is transparent; use palette color 1 (black) as the backdrop.
       lines.push('40 COLOR 15,1');
       lines.push(`50 BLOAD "${fname}",S`);
-      lines.push('60 REM VDP(7) bepaalt de achtergrondkleur; 1 is zwart.');
+      lines.push('60 REM VDP(7) sets the backdrop colour; 1 is black.');
       lines.push('70 VDP(7)=1');
       lines.push('80 IF INKEY$="" THEN 80');
       lines.push('90 END');
@@ -510,12 +514,12 @@ export class AppStore {
   async doSave(): Promise<void> {
     const baseName = this.saveName.trim();
     if (!baseName) {
-      this.setStatus('SAVE ERROR', 'Geef een naam op.');
+      this.setStatus('SAVE ERROR', 'Enter a name.');
       return;
     }
     const dir = this.saveDir;
     if (!dir) {
-      this.setStatus('SAVE ERROR', 'Kies eerst een map.');
+      this.setStatus('SAVE ERROR', 'Choose a folder first.');
       return;
     }
     const includePal = this.saveIncludePal;
@@ -538,10 +542,10 @@ export class AppStore {
       const sub = await createSubdir(dir, baseName);
       await writeFiles(sub, writes);
       this.saveError = '';
-      this.setStatus('SAVED', `Opgeslagen in ${dir.name}/${baseName} (${writes.length} bestand${writes.length === 1 ? '' : 'en'}).`);
+      this.setStatus('SAVED', `Saved to ${dir.name}/${baseName} (${writes.length} file${writes.length === 1 ? '' : 's'}).`);
       this.closeSaveDialog();
     } catch (e) {
-      this.saveError = e instanceof Error ? e.message : 'Opslaan mislukt.';
+      this.saveError = e instanceof Error ? e.message : 'Save failed.';
       this.setStatus('SAVE ERROR', this.saveError);
     }
   }

@@ -33,7 +33,7 @@ export class PaletteSwatches extends LitElement {
             <button
               class=${'swatch' + (i === store.fg ? ' sel-fg' : '') + (i === store.bg ? ' sel-bg' : '')}
               style="background:${swatchBg(i, palette)}"
-              title="${i === 0 ? 'Transparent' : `rgb(${c.join(', ')})`} — click = foreground, right-click = background"
+              title="${i === 0 ? 'Transparent' : `rgb(${c.join(', ')})`} — left-click = foreground, right-click = background"
               @click=${(e: MouseEvent) => this.pick(i, e)}
               @contextmenu=${(e: MouseEvent) => this.pick(i, e)}
             ></button>

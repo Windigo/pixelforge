@@ -1,5 +1,5 @@
 import { LitElement, html } from 'lit';
-import { StoreController } from '../state/store';
+import { store, StoreController } from '../state/store';
 
 export class MenuBar extends LitElement {
   constructor() {
@@ -15,7 +15,10 @@ export class MenuBar extends LitElement {
     return html`
       <header class="top">
         <div class="brand">PIXEL<b>FORGE</b></div>
-        <div class="ready"><i></i>v2.0</div>
+        <div class="top-actions">
+          <button class="mbtn help-btn" @click=${() => store.openHelp()}>? HELP</button>
+          <div class="ready"><i></i>v0.1</div>
+        </div>
       </header>
     `;
   }

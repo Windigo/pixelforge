@@ -23,6 +23,17 @@ export class AppShell extends LitElement {
   private onKeyDown = (e: KeyboardEvent): void => {
     const el = e.target as HTMLElement | null;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    // Help-dialog: F1 of ? opent, Esc sluit.
+    if (e.key === 'F1' || e.key === '?') {
+      e.preventDefault();
+      store.openHelp();
+      return;
+    }
+    if (store.helpOpen && e.key === 'Escape') {
+      e.preventDefault();
+      store.closeHelp();
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       store.undo();
@@ -49,6 +60,7 @@ export class AppShell extends LitElement {
       <pf-menu-bar></pf-menu-bar>
       <input id="file" type="file" accept="image/png,.png,.iff,.ilbm,.lbm,.sc5,.sc2,.pal" @change=${this.onFileChange} />
       <pf-save-dialog></pf-save-dialog>
+      <pf-help-dialog></pf-help-dialog>
       <div class="app">
         <pf-side-bar></pf-side-bar>
         <main class="main">

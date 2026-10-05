@@ -3,7 +3,7 @@ import type { DitherPattern } from '../core/dither';
 import { store, StoreController } from '../state/store';
 import type { ToolMode } from '../core/types';
 
-const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
+export const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
   {
     id: 'pencil',
     label: 'Pencil (P)',
@@ -61,7 +61,7 @@ const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
   },
 ];
 
-const toolIcon = (paths: string[]) => svg`
+export const toolIcon = (paths: string[]) => svg`
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     ${paths.map((p) => svg`<path d=${p} />`)}
   </svg>
@@ -138,7 +138,7 @@ export class ToolsBar extends LitElement {
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
-        <p class="hint">Pencil: left = foreground, right = background · Eraser: transparent · Eyedropper: pick colour · Select: drag to select, drag inside to move (Ctrl+C/X/V = copy/cut/paste) · Hand: pan.</p>
+        <p class="hint">Pencil: left-click = foreground, right-click = background · Eraser: transparent · Eyedropper: pick colour · Select: drag to select, drag inside to move (Ctrl+C/X/V = copy/cut/paste) · Hand: pan.</p>
       </div>
     `;
   }

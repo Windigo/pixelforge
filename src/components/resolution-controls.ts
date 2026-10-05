@@ -35,7 +35,7 @@ export class ResolutionControls extends LitElement {
             aria-describedby="ratio-lock-tooltip"
             @click=${() => store.toggleAspectRatio()}
           ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="m8 15 3-3m2 0 3-3M7.5 9h2v2m5 4h2v-2"/></svg></button>
-          <span class="tip-bubble ratio-bubble" id="ratio-lock-tooltip" role="tooltip">Aspect ratio vergrendelen. Aan: de andere maat wordt automatisch berekend om de oorspronkelijke verhoudingen te behouden. Uit: breedte en hoogte zijn onafhankelijk aan te passen.</span>
+          <span class="tip-bubble ratio-bubble" id="ratio-lock-tooltip" role="tooltip">Lock aspect ratio. On: the other dimension is calculated automatically to keep the original proportions. Off: width and height can be adjusted independently.</span>
         </span>
         <span class="res-label">SAMPLING</span>
         <select .value=${store.sampling} @change=${(e: Event) => store.setSampling((e.target as HTMLSelectElement).value as 'center' | 'dominant')}>

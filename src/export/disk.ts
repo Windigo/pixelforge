@@ -48,7 +48,7 @@ export function buildDisk(files: DiskFile[]): Uint8Array {
   );
   if (totalClusters > maxClusters) {
     throw new Error(
-      `Bestanden te groot voor een 720KB disk (${totalClusters} clusters nodig, ${maxClusters} beschikbaar). Verklein het beeld met de SCALE-slider.`,
+      `Files too large for a 720KB disk (${totalClusters} clusters needed, ${maxClusters} available). Shrink the image with the SCALE slider.`,
     );
   }
 

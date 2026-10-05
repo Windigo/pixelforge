@@ -9,4 +9,5 @@ import './components/tools-bar';
 import './components/palette-swatches';
 import './components/preview-pane';
 import './components/save-dialog';
+import './components/help-dialog';
 import './components/tooltip';
