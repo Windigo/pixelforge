@@ -1,6 +1,7 @@
 import { nearest, quantize, rgbDist } from './color';
 import { MSX1_PALETTE } from './msx';
 import { C64_PALETTE } from './c64';
+import type { C64Multicolor } from './c64';
 import { resampleTo } from './resample';
 import type { RGB, Sampling, Target } from './types';
 
@@ -25,6 +26,7 @@ export interface ConvertResult {
   palette: RGB[];
   width: number;
   height: number;
+  c64?: C64Multicolor;
 }
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -50,9 +52,11 @@ function scaledDims(
   if (!explicitW && !explicitH) {
     if (o.target === 'sc5') scale *= Math.min(1, 256 / source.width, 212 / source.height);
     else if (o.target === 'sc2') scale *= Math.min(1, 256 / source.width, 192 / source.height);
-    else if (o.target === 'c64') scale *= Math.min(1, 160 / source.width, 200 / source.height);
+    // C64 multicolor pixels are twice as wide as they are tall. Fit the image
+    // inside the physical 320×200 display, then store half the physical width.
+    else if (o.target === 'c64') scale *= Math.min(1, 320 / source.width, 200 / source.height);
   }
-  const w = explicitW || Math.max(1, Math.round(source.width * scale));
+  const w = explicitW || Math.max(1, Math.round(source.width * scale / (o.target === 'c64' ? 2 : 1)));
   const h = explicitH || Math.max(1, Math.round(source.height * scale));
   return { w: clamp(w, 1, 8192), h: clamp(h, 1, 8192) };
 }

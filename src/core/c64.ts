@@ -38,22 +38,32 @@ export interface C64Multicolor {
  * Quantiseert een geïndexeerd beeld (indices 0–15 in het C64-palet) naar de
  * multicolor-bitmap-mode: 3 globale kleuren (achtergrond + 2 gedeelde) + 1
  * lokale kleur per 8×8-cel (= 4×8 multicolor-pixels). Kleinere beelden worden
- * opgevuld met index 0, grotere worden linksboven afgesneden.
+ * gecentreerd opgevuld met index 0; grotere beelden worden gecentreerd afgesneden.
  */
 export function quantizeC64Multicolor(indexed: Uint8Array, width: number, height: number): C64Multicolor {
   const W = C64_W;
   const H = C64_H;
-  const at = (y: number, x: number): number => (y < height && x < width ? indexed[y * width + x] : 0);
+  const offsetX = Math.floor((W - width) / 2);
+  const offsetY = Math.floor((H - height) / 2);
+  const at = (y: number, x: number): number => {
+    const sx = x - offsetX;
+    const sy = y - offsetY;
+    return sx >= 0 && sx < width && sy >= 0 && sy < height ? indexed[sy * width + sx] : 0;
+  };
 
-  // 1. Gebruik per kleur over het hele beeld.
+  // 1. Count image colors and build a histogram for each 8x8 character cell.
   const usage = new Uint32Array(16);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) usage[at(y, x)]++;
 
-  // 2. De 3 globale kleuren = de 3 meest gebruikte.
-  const order = Array.from({ length: 16 }, (_, i) => i).sort((a, b) => usage[b] - usage[a]);
-  const background = order[0];
-  const shared1 = order[1];
-  const shared2 = order[2];
+  const cellUsages = new Uint8Array(40 * 25 * 16);
+  for (let cy = 0; cy < 25; cy++) {
+    for (let cx = 0; cx < 40; cx++) {
+      const base = (cy * 40 + cx) * 16;
+      for (let yy = 0; yy < 8; yy++) {
+        for (let xx = 0; xx < 4; xx++) cellUsages[base + at(cy * 8 + yy, cx * 4 + xx)]++;
+      }
+    }
+  }
 
   const dist = (a: number, b: number): number => {
     const ca = C64_PALETTE[a];
@@ -64,6 +74,71 @@ export function quantizeC64Multicolor(indexed: Uint8Array, width: number, height
     return dr * dr + dg * dg + db * db;
   };
 
+  const distances = Array.from({ length: 16 }, (_, a) =>
+    Uint32Array.from({ length: 16 }, (_, b) => dist(a, b)),
+  );
+  const initial = Array.from({ length: 16 }, (_, i) => i).sort((a, b) => usage[b] - usage[a]);
+  // Keep the most frequent source color as VIC background. The optimizer may
+  // improve the two shared colors, but must not turn transparent/black canvas
+  // pixels into a different background color.
+  const globals = initial.slice(0, 3);
+
+  const bestLocal = (histogramOffset: number, shared: number[]): { color: number; error: number } => {
+    let chosen = -1;
+    let bestError = Infinity;
+    for (let local = 0; local < 16; local++) {
+      if (shared.includes(local)) continue;
+      let error = 0;
+      for (let color = 0; color < 16; color++) {
+        const count = cellUsages[histogramOffset + color];
+        if (!count) continue;
+        const d = distances[color];
+        error += count * Math.min(d[shared[0]], d[shared[1]], d[shared[2]], d[local]);
+      }
+      if (error < bestError) {
+        bestError = error;
+        chosen = local;
+      }
+    }
+    return { color: chosen, error: bestError };
+  };
+
+  const globalError = (shared: number[]): number => {
+    let error = 0;
+    for (let cell = 0; cell < 40 * 25; cell++) {
+      error += bestLocal(cell * 16, shared).error;
+    }
+    return error;
+  };
+
+  // Improve the three shared colors against total per-cell RGB error instead
+  // of selecting them only by frequency. Keep each role distinct.
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (let slot = 1; slot < 3; slot++) {
+      let bestColor = globals[slot];
+      let bestError = globalError(globals);
+      for (let candidate = 0; candidate < 16; candidate++) {
+        if (globals.some((color, i) => i !== slot && color === candidate)) continue;
+        const previous = globals[slot];
+        globals[slot] = candidate;
+        const error = globalError(globals);
+        globals[slot] = previous;
+        if (error < bestError) {
+          bestError = error;
+          bestColor = candidate;
+        }
+      }
+      if (globals[slot] !== bestColor) {
+        globals[slot] = bestColor;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+
+  const [background, shared1, shared2] = globals;
+
   const bitmap = new Uint8Array(8000);
   const screenRam = new Uint8Array(1000);
   const colorRam = new Uint8Array(1000);
@@ -72,19 +147,7 @@ export function quantizeC64Multicolor(indexed: Uint8Array, width: number, height
   // 3. Per 8×8-cel (4×8 multicolor-pixels).
   for (let cy = 0; cy < 25; cy++) {
     for (let cx = 0; cx < 40; cx++) {
-      const cellUsage = new Uint32Array(16);
-      for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 4; xx++) cellUsage[at(cy * 8 + yy, cx * 4 + xx)]++;
-
-      // Lokale 4e kleur = meest gebruikte in de cel (exclusief de 3 globale).
-      let cellColor = background;
-      let best = -1;
-      for (let c = 0; c < 16; c++) {
-        if (c === background || c === shared1 || c === shared2) continue;
-        if (cellUsage[c] > best) {
-          best = cellUsage[c];
-          cellColor = c;
-        }
-      }
+      const cellColor = bestLocal((cy * 40 + cx) * 16, globals).color;
       const colors = [background, shared1, shared2, cellColor];
 
       for (let yy = 0; yy < 8; yy++) {
@@ -105,11 +168,16 @@ export function quantizeC64Multicolor(indexed: Uint8Array, width: number, height
           out[y * W + x] = colors[b];
           byte |= b << (6 - xx * 2);
         }
-        bitmap[cy * 320 + yy * 40 + cx] = byte;
+        // VIC-II stores each 8x8 character cell as eight consecutive bytes.
+        // Each character row is 40 cells (320 bytes); yy selects the scanline
+        // inside the cell and cx selects its horizontal cell position.
+        bitmap[cy * 320 + cx * 8 + yy] = byte;
       }
 
-      screenRam[cy * 40 + cx] = shared1 << 4;
-      colorRam[cy * 40 + cx] = (shared2 << 4) | cellColor;
+      // In bitmap multicolor mode, screen RAM holds both shared colors;
+      // color RAM contributes the cell's fourth color in its low nibble.
+      screenRam[cy * 40 + cx] = (shared1 << 4) | shared2;
+      colorRam[cy * 40 + cx] = cellColor;
     }
   }
 

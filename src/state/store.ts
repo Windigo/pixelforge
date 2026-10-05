@@ -5,7 +5,7 @@ import { convert } from '../core/convert';
 import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
-import { buildIlbm, buildPng, buildSc2, buildSc5, buildC64, downloadFiles, type FileOutput } from '../export/exporters';
+import { buildIlbm, buildPng, buildSc2, buildSc5, buildC64, buildC64Asm, buildC64Prg, downloadFiles, type FileOutput } from '../export/exporters';
 import { C64_PALETTE, quantizeC64Multicolor } from '../core/c64';
 import { buildDisk, sanitize83, type DiskFile } from '../export/disk';
 import { decodeImage, detectFormat, FORMAT_LABELS, indexedToCanvas, parsePal, type DecodedImage, type SourceFormat } from '../import/importers';
@@ -61,6 +61,7 @@ export class AppStore {
   saveName = '';
   saveIncludePal = false;
   saveMakeDisk = false;
+  saveAsm = false;
   saveError = '';
   helpOpen = false;
 
@@ -151,6 +152,11 @@ export class AppStore {
   setSaveName(v: string): void { this.saveName = v; this.notify(); }
   setSaveIncludePal(v: boolean): void { this.saveIncludePal = v; this.notify(); }
   setSaveMakeDisk(v: boolean): void { this.saveMakeDisk = v; this.notify(); }
+  async setSaveAsm(v: boolean): Promise<void> {
+    this.saveAsm = v;
+    this.saveFiles = await this.buildSaveFiles();
+    this.notify();
+  }
   setFg(i: number): void { this.fg = i; this.notify(); }
   setBg(i: number): void { this.bg = i; this.notify(); }
   setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
@@ -163,6 +169,7 @@ export class AppStore {
   private writePixel(x: number, y: number, index: number): void {
     const r = this.result;
     if (!r) return;
+    r.c64 = undefined;
     r.indexed[y * r.width + x] = index;
     const ctx = r.preview.getContext('2d')!;
     const p = ctx.getImageData(x, y, 1, 1);
@@ -441,12 +448,20 @@ export class AppStore {
     if (this.target === 'amiga') return Promise.resolve(buildIlbm(r, this.selection, this.planes));
     if (this.target === 'sc5') return Promise.resolve(buildSc5(r));
     if (this.target === 'sc2') return Promise.resolve(buildSc2(r));
-    if (this.target === 'c64') return Promise.resolve(buildC64(r));
+    if (this.target === 'c64') {
+      const files = buildC64(r);
+      if (this.saveAsm) {
+        files.push(buildC64Asm(r));
+        files.push(buildC64Prg(r));
+      }
+      return Promise.resolve(files);
+    }
     return buildPng(r, this.selection);
   }
 
   async openSaveDialog(): Promise<void> {
     if (!this.result) return;
+    this.saveAsm = false;
     const files = await this.buildSaveFiles();
     this.saveFiles = files;
     if (!hasFsAccess()) {
@@ -585,6 +600,7 @@ export class AppStore {
       } else if (this.target === 'c64') {
         // Toon het echte multicolor-resultaat (3 globale + 1 lokale kleur per cel).
         const m = quantizeC64Multicolor(converted.indexed, converted.width, converted.height);
+        converted.c64 = m;
         converted.indexed = m.indexed;
         converted.width = 160;
         converted.height = 200;

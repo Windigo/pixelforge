@@ -15,6 +15,10 @@ export class SaveDialog extends LitElement {
     return store.target === 'sc5' || store.target === 'sc2';
   }
 
+  private get isC64(): boolean {
+    return store.target === 'c64';
+  }
+
   render() {
     if (!store.saveDialogOpen) return html``;
     const files = store.saveFiles;
@@ -47,6 +51,15 @@ export class SaveDialog extends LitElement {
                 <label class="check">
                   <input type="checkbox" .checked=${store.saveMakeDisk} @change=${(e: Event) => store.setSaveMakeDisk((e.target as HTMLInputElement).checked)} />
                   Make a disk (.dsk) with a BASIC loader
+                </label>
+              `
+            : ''}
+
+          ${this.isC64
+            ? html`
+                <label class="check">
+                  <input type="checkbox" .checked=${store.saveAsm} @change=${(e: Event) => store.setSaveAsm((e.target as HTMLInputElement).checked)} />
+                  Kick Assembler source (.asm + .prg)
                 </label>
               `
             : ''}

@@ -1,6 +1,6 @@
 import type { ConvertResult } from '../core/convert';
 import { msxPaletteBytes } from '../core/msx';
-import { quantizeC64Multicolor } from '../core/c64';
+import { quantizeC64Multicolor, type C64Multicolor } from '../core/c64';
 import type { RGB, Selection } from '../core/types';
 
 function downloadBlob(blob: Blob, name: string): void {
@@ -288,7 +288,7 @@ export function buildSc2(r: ConvertResult): FileOutput[] {
 
 /** C64 multicolor bitmap als Koala Painter-bestand (.koa). */
 export function buildC64(r: ConvertResult): FileOutput[] {
-  const m = quantizeC64Multicolor(r.indexed, r.width, r.height);
+  const m = r.c64 ?? quantizeC64Multicolor(r.indexed, r.width, r.height);
   // Koala: 2-byte load-adres ($6000) + 8000 bitmap + 1000 screen-RAM + 1000 color-RAM + 1 achtergrond.
   const data = new Uint8Array(2 + 8000 + 1000 + 1000 + 1);
   data[0] = 0x00;
@@ -298,4 +298,209 @@ export function buildC64(r: ConvertResult): FileOutput[] {
   data.set(m.colorRam, 2 + 8000 + 1000);
   data[2 + 8000 + 1000 + 1000] = m.background;
   return [{ ext: '.koa', data, mime: 'application/octet-stream' }];
+}
+
+function asmByteLines(data: Uint8Array, perLine = 16): string[] {
+  const lines: string[] = [];
+  for (let i = 0; i < data.length; i += perLine) {
+    const chunk = Array.from(data.slice(i, i + perLine))
+      .map((b) => `$${b.toString(16).padStart(2, '0').toUpperCase()}`)
+      .join(', ');
+    lines.push(`    .byte ${chunk}`);
+  }
+  return lines;
+}
+
+function generateC64Asm(m: C64Multicolor): string {
+  const bg = `$${m.background.toString(16).padStart(2, '0').toUpperCase()}`;
+  const lines = [
+    '// PixelForge — C64 multicolor bitmap',
+    '// 160×200 · 16 colours · Kick Assembler',
+    '',
+    ':BasicUpstart2(main)',
+    '',
+    'main:',
+    '    // Border + background colour',
+    '    lda #$00',
+    '    sta $d020',
+    `    lda #${bg}`,
+    '    sta $d021',
+    '',
+    '    // Enable bitmap mode + multicolor',
+    '    lda $d011',
+    '    ora #$20',
+    '    sta $d011',
+    '    lda $d016',
+    '    ora #$10',
+    '    sta $d016',
+    '',
+    '    // Bitmap at $2000, screen at $0400',
+    '    lda #$18',
+    '    sta $d018',
+    '',
+    '    // Select VIC bank 0 ($0000-$3fff); CIA2 bank bits are inverted',
+    '    lda $dd02',
+    '    ora #$03',
+    '    sta $dd02',
+    '    lda $dd00',
+    '    ora #$03',
+    '    sta $dd00',
+    '',
+    '    // Copy screen RAM (1000 bytes) to $0400',
+    '    ldx #$00',
+    'copy_screen:',
+    '    lda screen_data, x',
+    '    sta $0400, x',
+    '    lda screen_data + $0100, x',
+    '    sta $0500, x',
+    '    lda screen_data + $0200, x',
+    '    sta $0600, x',
+    '    inx',
+    '    bne copy_screen',
+    '    ldx #$00',
+    'copy_screen_tail:',
+    '    lda screen_data + $0300, x',
+    '    sta $0700, x',
+    '    inx',
+    '    cpx #$e8',
+    '    bne copy_screen_tail',
+    '',
+    '    // Copy colour RAM (1000 bytes) to $d800',
+    '    ldx #$00',
+    'copy_color:',
+    '    lda color_data, x',
+    '    sta $d800, x',
+    '    lda color_data + $0100, x',
+    '    sta $d900, x',
+    '    lda color_data + $0200, x',
+    '    sta $da00, x',
+    '    inx',
+    '    bne copy_color',
+    '    ldx #$00',
+    'copy_color_tail:',
+    '    lda color_data + $0300, x',
+    '    sta $db00, x',
+    '    inx',
+    '    cpx #$e8',
+    '    bne copy_color_tail',
+    '',
+    'loop:',
+    '    jmp loop',
+    '',
+    '// -------- screen RAM data (1000 bytes) --------',
+    'screen_data:',
+    ...asmByteLines(m.screenRam),
+    '',
+    '// -------- colour RAM data (1000 bytes) --------',
+    'color_data:',
+    ...asmByteLines(m.colorRam),
+    '',
+    '// -------- bitmap data (8000 bytes, assembled at $2000) --------',
+    '.pc = $2000',
+    'bitmap:',
+    ...asmByteLines(m.bitmap),
+  ];
+  return lines.join('\n') + '\n';
+}
+
+/** Kick Assembler source (.asm) met de data als assembly en een viewer-routine. */
+export function buildC64Asm(r: ConvertResult): FileOutput {
+  const m = r.c64 ?? quantizeC64Multicolor(r.indexed, r.width, r.height);
+  return { ext: '.asm', data: new TextEncoder().encode(generateC64Asm(m)), mime: 'text/plain' };
+}
+
+/** Standalone .prg voor direct laden op een C64/emulator. */
+export function buildC64Prg(r: ConvertResult): FileOutput {
+  const m = r.c64 ?? quantizeC64Multicolor(r.indexed, r.width, r.height);
+  return { ext: '.prg', data: buildC64DirectPrg(m), mime: 'application/octet-stream' };
+}
+
+/**
+ * A C64 PRG must be a contiguous memory image. Load the bitmap at $2000,
+ * where VIC bank 0 can read it directly, then append a BASIC-startable stub
+ * at $0801. The screen/color tables are copied by a short unrolled routine.
+ */
+function buildC64DirectPrg(m: C64Multicolor): Uint8Array {
+  const code: number[] = [];
+  const emit = (...v: number[]) => code.push(...v);
+  const staAbs = (addr: number) => emit(0x8d, addr & 255, addr >> 8);
+  const staAbsX = (addr: number) => emit(0x9d, addr & 255, addr >> 8);
+  const ldaImm = (v: number) => emit(0xa9, v);
+  const ldaAbsX = (addr: number) => emit(0xbd, addr & 255, addr >> 8);
+  const ldxImm = (v: number) => emit(0xa2, v);
+  const inx = () => emit(0xe8);
+  const bne = (offset: number) => emit(0xd0, offset & 255);
+
+  // The BASIC line is 12 bytes, so its machine-code entry is $080d (2061).
+  ldaImm(0); staAbs(0xd020);
+  ldaImm(m.background); staAbs(0xd021);
+  emit(0xad, 0x11, 0xd0, 0x09, 0x20); staAbs(0xd011);
+  emit(0xad, 0x16, 0xd0, 0x09, 0x10); staAbs(0xd016);
+  ldaImm(0x18); staAbs(0xd018);
+  // CIA2 bank bits are inverted: $03 selects VIC bank 0 ($0000-$3fff).
+  emit(0xad, 0x00, 0xdd, 0x09, 0x03); staAbs(0xdd00);
+
+  // Copy screen RAM and color RAM from their fixed PRG load addresses.
+  ldxImm(0);
+  const screenLoop = code.length;
+  for (let page = 0; page < 3; page++) {
+    ldaAbsX(0x3f40 + page * 0x100); staAbsX(0x0400 + page * 0x100);
+  }
+  inx();
+  const screenBne = code.length; bne(0);
+  code[screenBne + 1] = (screenLoop - (screenBne + 2)) & 255;
+  ldxImm(0);
+  const screenTailLoop = code.length;
+  ldaAbsX(0x4240); staAbsX(0x0700);
+  inx();
+  emit(0xe0, 0xe8); // CPX #$e8: remaining 232 screen cells
+  const screenTailBne = code.length; bne(0);
+  code[screenTailBne + 1] = (screenTailLoop - (screenTailBne + 2)) & 255;
+
+  ldxImm(0);
+  const colorLoop = code.length;
+  for (let page = 0; page < 3; page++) {
+    ldaAbsX(0x4328 + page * 0x100); staAbsX(0xd800 + page * 0x100);
+  }
+  inx();
+  const colorBne = code.length; bne(0);
+  code[colorBne + 1] = (colorLoop - (colorBne + 2)) & 255;
+  ldxImm(0);
+  const colorTailLoop = code.length;
+  ldaAbsX(0x4628); staAbsX(0xdb00);
+  inx();
+  emit(0xe0, 0xe8); // CPX #$e8: remaining 232 color-RAM cells
+  const colorTailBne = code.length; bne(0);
+  code[colorTailBne + 1] = (colorTailLoop - (colorTailBne + 2)) & 255;
+
+  // Stable idle loop after VIC-II setup.
+  const loopAddress = 0x080d + code.length;
+  emit(0x4c, loopAddress & 255, loopAddress >> 8);
+
+  const basic = [
+    0x0b, 0x08, // next BASIC line at $080b
+    0x0a, 0x00, // line 10
+    0x9e, 0x32, 0x30, 0x36, 0x31, // SYS 2061
+    0x00, 0x00, 0x00,
+  ];
+  const loadAddress = 0x0801;
+  const bitmapAddress = 0x2000;
+  const screenAddress = bitmapAddress + m.bitmap.length;
+  const colorAddress = screenAddress + m.screenRam.length;
+  const endAddress = colorAddress + m.colorRam.length + 1;
+  if (screenAddress !== 0x3f40 || colorAddress !== 0x4328 || endAddress !== 0x4711) {
+    throw new Error('Unexpected C64 PRG data layout.');
+  }
+  const memory = new Uint8Array(endAddress - loadAddress);
+  memory.set(basic, 0);
+  memory.set(code, 0x080d - loadAddress);
+  memory.set(m.bitmap, bitmapAddress - loadAddress);
+  memory.set(m.screenRam, screenAddress - loadAddress);
+  memory.set(m.colorRam, colorAddress - loadAddress);
+  memory[endAddress - loadAddress - 1] = m.background;
+  const prg = new Uint8Array(memory.length + 2);
+  prg[0] = loadAddress & 255;
+  prg[1] = loadAddress >> 8;
+  prg.set(memory, 2);
+  return prg;
 }
