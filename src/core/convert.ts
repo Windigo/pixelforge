@@ -2,6 +2,8 @@ import { nearest, quantize, rgbDist } from './color';
 import { MSX1_PALETTE } from './msx';
 import { C64_PALETTE } from './c64';
 import type { C64Multicolor } from './c64';
+import { NES_PALETTE } from './nes';
+import type { NesResult } from './nes';
 import { resampleTo } from './resample';
 import type { RGB, Sampling, Target } from './types';
 
@@ -27,6 +29,7 @@ export interface ConvertResult {
   width: number;
   height: number;
   c64?: C64Multicolor;
+  nes?: NesResult;
 }
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -55,6 +58,8 @@ function scaledDims(
     // C64 multicolor pixels are twice as wide as they are tall. Fit the image
     // inside the physical 320×200 display, then store half the physical width.
     else if (o.target === 'c64') scale *= Math.min(1, 320 / source.width, 200 / source.height);
+    // NES: pas het beeld proportioneel in het 256×240-scherm (contain, alleen verkleinen).
+    else if (o.target === 'nes') scale *= Math.min(1, 256 / source.width, 240 / source.height);
   }
   const w = explicitW || Math.max(1, Math.round(source.width * scale / (o.target === 'c64' ? 2 : 1)));
   const h = explicitH || Math.max(1, Math.round(source.height * scale));
@@ -80,7 +85,9 @@ export function convert(source: HTMLCanvasElement, o: ConvertOptions): ConvertRe
       ? MSX1_PALETTE.map((c) => [...c] as RGB)
       : o.target === 'c64'
         ? C64_PALETTE.map((c) => [...c] as RGB)
-        : ([
+        : o.target === 'nes'
+          ? NES_PALETTE.map((c) => [...c] as RGB)
+          : ([
             [0, 0, 0] as RGB,
             ...quantize(src.data, targetMaxColors(o) - 1, o.merge, o.pinned),
           ] as RGB[]);

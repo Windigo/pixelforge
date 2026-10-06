@@ -8,6 +8,7 @@ const TARGETS: { id: Target; label: string }[] = [
   { id: 'sc5', label: 'MSX SCREEN 5' },
   { id: 'sc2', label: 'MSX SCREEN 2' },
   { id: 'c64', label: 'C64 MULTICOLOR' },
+  { id: 'nes', label: 'NES' },
   { id: 'png', label: 'PIXELART PNG' },
 ];
 
@@ -32,6 +33,9 @@ export class PreviewPane extends LitElement {
   kind: 'original' | 'output' = 'original';
   private drag: Drag | null = null;
   private lastPointer: PointerEvent | null = null;
+  private lastDimKey = '';
+  private fittedZoom: number | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor() {
     super();
@@ -45,6 +49,16 @@ export class PreviewPane extends LitElement {
   firstUpdated(): void {
     const wrap = this.querySelector('.canvas-wrap') as HTMLElement | null;
     wrap?.addEventListener('wheel', (e: WheelEvent) => this.onWheel(e), { passive: false });
+    // Her-passend bij het vergroten/verkleinen van het paneel of venster,
+    // zolang de gebruiker niet handmatig heeft ingezoomd.
+    this.resizeObserver = new ResizeObserver(() => this.onResize());
+    if (wrap) this.resizeObserver.observe(wrap);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 
   private canvas(): HTMLCanvasElement | null {
@@ -57,13 +71,22 @@ export class PreviewPane extends LitElement {
     const empty = !srcCanvas;
     const title = kind === 'original' ? 'ORIGINAL' : `${store.targetLabel()} PREVIEW`;
     const tag = kind === 'original' ? store.sourceLabel() : store.targetLabel();
+    const colorCount = !store.result
+      ? 0
+      : store.target === 'sc2'
+        ? new Set(Array.from(store.result.indexed, (index) => (index === 0 ? 1 : index))).size
+        : store.target === 'nes'
+          ? store.result.nes?.palettes
+            ? new Set(store.result.nes.palettes.flat()).size
+            : 4
+          : store.result.palette.length;
     const meta =
       kind === 'original'
         ? store.source
           ? `${store.sourceLabel()} · ${store.source.width} × ${store.source.height}`
           : '—'
         : store.result
-          ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${store.target === 'sc2' ? new Set(Array.from(store.result.indexed, (index) => index === 0 ? 1 : index)).size : store.result.palette.length} CL`
+          ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${colorCount} CL`
           : '—';
     const selText = store.selection ? `SELECTION: ${store.selection.w} × ${store.selection.h} PX` : 'SELECTION: —';
 
@@ -109,6 +132,7 @@ export class PreviewPane extends LitElement {
           <span class="foot-meta">${meta}</span>
           <span class="selection-size">${selText}</span>
           <div class="nav">
+            <button class="fit-btn" title="Fit to screen" @click=${() => this.fitToPane()}>FIT</button>
             <button title="Zoom out" @click=${() => this.changeZoom(-0.5)}>−</button>
             <button title="Zoom in" @click=${() => this.changeZoom(0.5)}>+</button>
             <button title="Reset view" @click=${() => store.setView(this.kind, { zoom: 1, x: 0, y: 0 })}>↻</button>
@@ -133,10 +157,19 @@ export class PreviewPane extends LitElement {
     if (!srcCanvas) {
       canvas.width = 0;
       canvas.height = 0;
+      this.lastDimKey = '';
+      this.fittedZoom = null;
       return;
     }
     if (canvas.width !== srcCanvas.width) canvas.width = srcCanvas.width;
     if (canvas.height !== srcCanvas.height) canvas.height = srcCanvas.height;
+    // Pas het beeld automatisch aan zodra de afmetingen veranderen (nieuw beeld
+    // of nieuw geconverteerd resultaat).
+    const key = `${this.kind}:${srcCanvas.width}x${srcCanvas.height}`;
+    if (key !== this.lastDimKey) {
+      this.lastDimKey = key;
+      this.fitToPane();
+    }
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(srcCanvas, 0, 0);
@@ -322,9 +355,32 @@ export class PreviewPane extends LitElement {
   }
 
   private changeZoom(delta: number): void {
+    this.fittedZoom = null;
     const v = store.views[this.kind];
     const zoom = Math.max(0.25, Math.min(32, v.zoom + delta));
     store.setView(this.kind, { ...v, zoom });
+  }
+
+  /** Pas het beeld aan de beschikbare ruimte van het paneel aan (contain). */
+  private fitToPane(): void {
+    const canvas = this.canvas();
+    const wrap = this.querySelector('.canvas-wrap') as HTMLElement | null;
+    if (!canvas || !wrap || !canvas.width || wrap.clientWidth < 2) return;
+    const pad = 20;
+    const availW = Math.max(1, wrap.clientWidth - pad);
+    const availH = Math.max(1, wrap.clientHeight - pad);
+    const z = Math.max(0.25, Math.min(32, Math.min(availW / canvas.width, availH / canvas.height)));
+    const y = Math.max(0, Math.round((wrap.clientHeight - canvas.height * z) / 2));
+    this.fittedZoom = z;
+    store.setView(this.kind, { zoom: z, x: 0, y });
+  }
+
+  /** Her-passend wanneer het paneel verandert van grootte, tenzij er handmatig gezoomd is. */
+  private onResize(): void {
+    if (this.fittedZoom === null) return;
+    const v = store.views[this.kind];
+    if (Math.abs(v.zoom - this.fittedZoom) > 0.001) return;
+    this.fitToPane();
   }
 
   private onWheel(e: WheelEvent): void {

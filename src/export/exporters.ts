@@ -1,6 +1,7 @@
 import type { ConvertResult } from '../core/convert';
 import { msxPaletteBytes } from '../core/msx';
 import { quantizeC64Multicolor, type C64Multicolor } from '../core/c64';
+import { quantizeNes, type NesResult } from '../core/nes';
 import type { RGB, Selection } from '../core/types';
 
 function downloadBlob(blob: Blob, name: string): void {
@@ -503,4 +504,121 @@ function buildC64DirectPrg(m: C64Multicolor): Uint8Array {
   prg[1] = loadAddress >> 8;
   prg.set(memory, 2);
   return prg;
+}
+
+/** NES-ROM (iNES / mapper 0) met de achtergrond als statisch scherm. */
+export function buildNes(r: ConvertResult): FileOutput[] {
+  const m = r.nes ?? quantizeNes(r.indexed, r.width, r.height);
+  return [{ ext: '.nes', data: buildNesRom(m), mime: 'application/octet-stream' }];
+}
+
+/**
+ * Bouw een NROM (mapper 0) .nes-bestand: 16KB PRG + 8KB CHR. De PRG stelt het
+ * palet in, laadt de nametable + attributen en schakelt de achtergrond in.
+ */
+function buildNesRom(m: NesResult): Uint8Array {
+  const assemble = (palAddr: number, ntAddr: number): number[] => {
+    const code: number[] = [];
+    const emit = (...v: number[]) => code.push(...v);
+    const ldaImm = (v: number) => emit(0xa9, v);
+    const ldxImm = (v: number) => emit(0xa2, v);
+    const staAbs = (a: number) => emit(0x8d, a & 255, a >> 8);
+    const ldaAbsX = (a: number) => emit(0xbd, a & 255, a >> 8);
+    const inx = () => emit(0xe8);
+    const bne = (off: number) => emit(0xd0, off & 255);
+    const cpxImm = (v: number) => emit(0xe0, v);
+
+    emit(0x78, 0xd8); // sei, cld
+    ldxImm(0xff); emit(0x9a); // txs
+    ldaImm(0x00); staAbs(0x2000); staAbs(0x2001); // PPUCTRL=0, PPUMASK=0
+
+    // Wacht 2 vblanks.
+    const vb1 = code.length;
+    emit(0x2c, 0x02, 0x20); // bit $2002
+    const vb1b = code.length; emit(0x10, 0); // bpl vb1
+    code[vb1b + 1] = (vb1 - (vb1b + 2)) & 255;
+    const vb2 = code.length;
+    emit(0x2c, 0x02, 0x20);
+    const vb2b = code.length; emit(0x10, 0);
+    code[vb2b + 1] = (vb2 - (vb2b + 2)) & 255;
+
+    // Laad palet (32 bytes) op $3F00.
+    ldaImm(0x3f); staAbs(0x2006);
+    ldaImm(0x00); staAbs(0x2006);
+    ldxImm(0x00);
+    const palLoop = code.length;
+    ldaAbsX(palAddr); staAbs(0x2007);
+    inx();
+    cpxImm(0x20);
+    const palBne = code.length; bne(0);
+    code[palBne + 1] = (palLoop - (palBne + 2)) & 255;
+
+    // Laad nametable + attributen (1024 bytes) op $2000.
+    ldaImm(0x20); staAbs(0x2006);
+    ldaImm(0x00); staAbs(0x2006);
+    ldxImm(0x00);
+    const ntLoop = code.length;
+    ldaAbsX(ntAddr); staAbs(0x2007);
+    ldaAbsX(ntAddr + 0x100); staAbs(0x2007);
+    ldaAbsX(ntAddr + 0x200); staAbs(0x2007);
+    ldaAbsX(ntAddr + 0x300); staAbs(0x2007);
+    inx();
+    const ntBne = code.length; bne(0);
+    code[ntBne + 1] = (ntLoop - (ntBne + 2)) & 255;
+
+    // Scroll op 0,0 en rendering aan.
+    ldaImm(0x00); staAbs(0x2005); staAbs(0x2005);
+    ldaImm(0x1e); staAbs(0x2001); // PPUMASK: background + sprites
+    ldaImm(0x00); staAbs(0x2000);
+
+    const loop = code.length;
+    emit(0x4c, loop & 255, loop >> 8); // jmp loop
+    return code;
+  };
+
+  // De codelengte hangt niet af van de adreswaarden (alleen 16-bit operanden).
+  const tmp = assemble(0, 0x100);
+  const palAddr = 0x8000 + tmp.length;
+  const ntAddr = palAddr + 32;
+  const code = assemble(palAddr, ntAddr);
+
+  // Paletdata: 4 achtergrondpaletten + 4 sprite-paletten (spiegeling).
+  const paletteData = new Uint8Array(32);
+  for (let p = 0; p < 4; p++) {
+    paletteData[p * 4] = m.bg;
+    paletteData[p * 4 + 1] = m.palettes[p][1];
+    paletteData[p * 4 + 2] = m.palettes[p][2];
+    paletteData[p * 4 + 3] = m.palettes[p][3];
+  }
+  for (let i = 0; i < 16; i++) paletteData[16 + i] = paletteData[i];
+
+  // Nametable (960) + attributen (64).
+  const nametable = new Uint8Array(1024);
+  nametable.set(m.nameTable, 0);
+  nametable.set(m.attributeTable, 960);
+
+  const prg = new Uint8Array(0x4000); // 16KB
+  prg.set(code, 0);
+  prg.set(paletteData, palAddr - 0x8000);
+  prg.set(nametable, ntAddr - 0x8000);
+  // Interrupt/reset-vectoren (PRG wordt gespiegeld naar $C000–$FFFF).
+  prg[0x3ffa] = 0x00; prg[0x3ffb] = 0x80; // NMI
+  prg[0x3ffc] = 0x00; prg[0x3ffd] = 0x80; // RESET → $8000
+  prg[0x3ffe] = 0x00; prg[0x3fff] = 0x80; // IRQ
+
+  const chr = new Uint8Array(0x2000); // 8KB CHR (pattern table 0 + lege 1)
+  chr.set(m.patterns, 0);
+
+  const header = new Uint8Array(16);
+  header.set([0x4e, 0x45, 0x53, 0x1a], 0); // "NES\x1a"
+  header[4] = 1; // 1×16KB PRG
+  header[5] = 1; // 1×8KB CHR
+  header[6] = 0x00; // mapper 0, horizontale spiegeling
+  header[7] = 0x00;
+
+  const rom = new Uint8Array(16 + 0x4000 + 0x2000);
+  rom.set(header, 0);
+  rom.set(prg, 16);
+  rom.set(chr, 16 + 0x4000);
+  return rom;
 }

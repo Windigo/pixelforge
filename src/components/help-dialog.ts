@@ -73,7 +73,7 @@ export class HelpDialog extends LitElement {
             <section>
               <h4>LOAD / SAVE</h4>
               <div class="help-row"><span class="kbd-row">LOAD</span><span>PNG · IFF/ILBM · SCREEN 5 · SCREEN 2 · PAL (click or drop in the ORIGINAL pane)</span></div>
-              <div class="help-row"><span class="kbd-row">EXPORT</span><span>AMIGA IFF · MSX SCREEN 5 · MSX SCREEN 2 · Pixel-art PNG</span></div>
+              <div class="help-row"><span class="kbd-row">EXPORT</span><span>AMIGA IFF · MSX SCREEN 5 · MSX SCREEN 2 · C64 · NES · Pixel-art PNG</span></div>
             </section>
 
             <section>

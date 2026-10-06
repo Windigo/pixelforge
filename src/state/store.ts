@@ -5,8 +5,9 @@ import { convert } from '../core/convert';
 import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
 import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
-import { buildIlbm, buildPng, buildSc2, buildSc5, buildC64, buildC64Asm, buildC64Prg, downloadFiles, type FileOutput } from '../export/exporters';
+import { buildIlbm, buildPng, buildSc2, buildSc5, buildC64, buildC64Asm, buildC64Prg, buildNes, downloadFiles, type FileOutput } from '../export/exporters';
 import { C64_PALETTE, quantizeC64Multicolor } from '../core/c64';
+import { NES_PALETTE, quantizeNes } from '../core/nes';
 import { buildDisk, sanitize83, type DiskFile } from '../export/disk';
 import { decodeImage, detectFormat, FORMAT_LABELS, indexedToCanvas, parsePal, type DecodedImage, type SourceFormat } from '../import/importers';
 import { createSubdir, hasFsAccess, loadDirHandle, pickDirectory, writeFiles, type SaveFile } from './fs';
@@ -82,7 +83,7 @@ export class AppStore {
   }
 
   targetLabel(): string {
-    return { amiga: 'ILBM', sc5: 'SCREEN 5', sc2: 'SCREEN 2', png: 'PNG', c64: 'C64' }[this.target];
+    return { amiga: 'ILBM', sc5: 'SCREEN 5', sc2: 'SCREEN 2', png: 'PNG', c64: 'C64', nes: 'NES' }[this.target];
   }
 
   sourceLabel(): string {
@@ -170,6 +171,7 @@ export class AppStore {
     const r = this.result;
     if (!r) return;
     r.c64 = undefined;
+    r.nes = undefined;
     r.indexed[y * r.width + x] = index;
     const ctx = r.preview.getContext('2d')!;
     const p = ctx.getImageData(x, y, 1, 1);
@@ -456,6 +458,7 @@ export class AppStore {
       }
       return Promise.resolve(files);
     }
+    if (this.target === 'nes') return Promise.resolve(buildNes(r));
     return buildPng(r, this.selection);
   }
 
@@ -605,6 +608,15 @@ export class AppStore {
         converted.width = 160;
         converted.height = 200;
         converted.preview = indexedToCanvas(m.indexed, C64_PALETTE, 160, 200, false);
+      } else if (this.target === 'nes') {
+        // Toon het echte NES-resultaat: 4 paletten van 4 kleuren, 2 bits per
+        // pixel en één palet per 16×16-attributeregio.
+        const m = quantizeNes(converted.indexed, converted.width, converted.height);
+        converted.nes = m;
+        converted.indexed = m.indexed;
+        converted.width = 256;
+        converted.height = 240;
+        converted.preview = indexedToCanvas(m.indexed, NES_PALETTE, 256, 240, false);
       } else if (this.target === 'sc5') {
         // Toon het echte 256×212-resultaat (beeld opgevuld met kleurindex 0).
         // Index 0 tonen we transparant, net als de rest van de editor, zodat de
