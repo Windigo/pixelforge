@@ -138,6 +138,20 @@ export class ToolsBar extends LitElement {
           <input type="checkbox" .checked=${store.showGrid} @change=${(e: Event) => store.setShowGrid((e.target as HTMLInputElement).checked)} />
           GRID
         </label>
+        <div class="row">
+          <label>CELL SIZE</label>
+          <select .value=${String(store.gridSize)} @change=${(e: Event) => store.setGridSize(Number((e.target as HTMLSelectElement).value) as 8 | 16)}>
+            <option value="8">8 × 8 px</option>
+            <option value="16">16 × 16 px</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>OFFSET</label>
+          <span class="sizes">
+            <input inputmode="numeric" type="number" step="1" placeholder="X" .value=${String(store.gridOffsetX)} @change=${(e: Event) => store.setGridOffsetX(Number((e.target as HTMLInputElement).value) || 0)} />
+            <input inputmode="numeric" type="number" step="1" placeholder="Y" .value=${String(store.gridOffsetY)} @change=${(e: Event) => store.setGridOffsetY(Number((e.target as HTMLInputElement).value) || 0)} />
+          </span>
+        </div>
         <p class="hint">Pencil: left-click = foreground, right-click = background · Eraser: transparent · Eyedropper: pick colour · Select: drag to select, drag inside to move (Ctrl+C/X/V = copy/cut/paste) · Hand: pan.</p>
       </div>
     `;

@@ -40,7 +40,10 @@ export class AppStore {
   mode: ToolMode = 'pan';
   fg = 1;
   bg = 1;
-  showGrid = false;
+  showGrid = true;
+  gridSize: 8 | 16 = 8;
+  gridOffsetX = 0;
+  gridOffsetY = 0;
   brushSize = 1;
   brushShape: 'round' | 'square' = 'round';
   ditherPattern: DitherPattern = 'checkerboard';
@@ -161,6 +164,9 @@ export class AppStore {
   setFg(i: number): void { this.fg = i; this.notify(); }
   setBg(i: number): void { this.bg = i; this.notify(); }
   setShowGrid(v: boolean): void { this.showGrid = v; this.notify(); }
+  setGridSize(n: 8 | 16): void { this.gridSize = n; this.notify(); }
+  setGridOffsetX(n: number): void { this.gridOffsetX = n; this.notify(); }
+  setGridOffsetY(n: number): void { this.gridOffsetY = n; this.notify(); }
   setBrushSize(n: number): void { this.brushSize = n; this.notify(); }
   setBrushShape(s: 'round' | 'square'): void { this.brushShape = s; this.notify(); }
   setDitherPattern(p: DitherPattern): void { this.ditherPattern = p; this.notify(); }

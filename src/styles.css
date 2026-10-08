@@ -104,7 +104,7 @@ input[type='range']:disabled {
 .undo-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
-.sizes { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sizes { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 96px; flex: 0 0 auto; }
 .sizes input {
   min-width: 0; width: 100%; background: #f5f5f5; border: 0;
   padding: 4px; color: #111; font: 12px monospace;

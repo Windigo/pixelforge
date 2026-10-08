@@ -239,9 +239,13 @@ export class PreviewPane extends LitElement {
       overlay.style.width = wpx;
       overlay.style.height = hpx;
       overlay.style.transform = transform;
-      const step = Math.max(1, Math.round(8 / v.zoom));
-      const size = v.zoom * step;
-      overlay.style.backgroundSize = `${size}px ${size}px`;
+      // Grid dat op de graphics is uitgelijnd: elke cel is precies gridSize
+      // beeldpixels, geankerd op (0,0), zodat sprites/tiles er netjes op passen.
+      const cell = store.gridSize * v.zoom;
+      overlay.style.backgroundSize = `${cell}px ${cell}px`;
+      // Met een offset schuif je het raster over de graphics heen, zodat je het
+      // precies op de sprite/tile-grenzen kunt leggen als die niet op (0,0) staan.
+      overlay.style.backgroundPosition = `${store.gridOffsetX * v.zoom}px ${store.gridOffsetY * v.zoom}px`;
       overlay.hidden = !store.showGrid;
     }
   }
