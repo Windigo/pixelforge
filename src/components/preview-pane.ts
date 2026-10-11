@@ -2,6 +2,8 @@ import { LitElement, html } from 'lit';
 import { ditherValue } from '../core/dither';
 import { store, StoreController } from '../state/store';
 import type { Target } from '../core/types';
+import { tileId, tileSelectionFromDrag } from '../core/tiles';
+import { SOURCE_TILE_DRAG_TYPE, TILE_DRAG_TYPE, TILE_SELECTION_DRAG_TYPE } from './tile-library';
 
 const TARGETS: { id: Target; label: string }[] = [
   { id: 'amiga', label: 'AMIGA IFF' },
@@ -13,7 +15,7 @@ const TARGETS: { id: Target; label: string }[] = [
 ];
 
 type Drag = {
-  type: 'pan' | 'draw' | 'marquee' | 'move';
+  type: 'pan' | 'draw' | 'marquee' | 'move' | 'tileMarquee' | 'tileCopy';
   id: number;
   x: number;
   y: number;
@@ -88,6 +90,7 @@ export class PreviewPane extends LitElement {
         : store.result
           ? `${store.targetLabel()} · ${store.result.width} × ${store.result.height} · ${colorCount} CL`
           : '—';
+    const zoomPct = Math.round(store.views[this.kind].zoom * 100);
     const selText = store.selection ? `SELECTION: ${store.selection.w} × ${store.selection.h} PX` : 'SELECTION: —';
 
     return html`
@@ -122,6 +125,7 @@ export class PreviewPane extends LitElement {
           <canvas></canvas>
           <div class="grid-overlay" hidden></div>
           <canvas class="brush-cursor" hidden></canvas>
+          <div class="tile-selection-drag" draggable="true" hidden @dragstart=${(e: DragEvent) => this.onTileDragStart(e)} @dragend=${() => this.onTileDragEnd()}></div>
           <div class="empty" ?hidden=${!empty}>
             ${kind === 'original'
               ? html`<small>or drag & drop an image here</small>`
@@ -130,9 +134,11 @@ export class PreviewPane extends LitElement {
         </div>
         <div class="window-foot">
           <span class="foot-meta">${meta}</span>
+          <span class="zoom-badge" title="Current zoom">${zoomPct}%</span>
           <span class="selection-size">${selText}</span>
           <div class="nav">
             <button class="fit-btn" title="Fit to screen" @click=${() => this.fitToPane()}>FIT</button>
+            <button class="one-btn" title="100% zoom — actual pixel size (1 tile = its real size)" @click=${() => store.setView(this.kind, { zoom: 1, x: 0, y: 0 })}>1:1</button>
             <button title="Zoom out" @click=${() => this.changeZoom(-0.5)}>−</button>
             <button title="Zoom in" @click=${() => this.changeZoom(0.5)}>+</button>
             <button title="Reset view" @click=${() => store.setView(this.kind, { zoom: 1, x: 0, y: 0 })}>↻</button>
@@ -174,9 +180,12 @@ export class PreviewPane extends LitElement {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(srcCanvas, 0, 0);
     this.drawSelection(ctx, canvas.width, canvas.height);
+    this.drawTileSelection(ctx);
     this.drawFloating(ctx);
+    this.drawTileFloating(ctx);
     this.drawBox(ctx, canvas.width, canvas.height);
     this.applyView(canvas, canvas.width, canvas.height);
+    this.positionTileDragOverlay();
   }
 
   private drawSelection(ctx: CanvasRenderingContext2D, srcW: number, srcH: number): void {
@@ -196,6 +205,86 @@ export class PreviewPane extends LitElement {
     ctx.restore();
   }
 
+  private drawTileSelection(ctx: CanvasRenderingContext2D): void {
+    const s = this.kind === 'original' ? store.sourceTileSelection : store.tileSelection;
+    if (!s) return;
+    const v = store.views[this.kind];
+    ctx.save();
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = Math.max(1, 1 / v.zoom);
+    ctx.setLineDash([4 / v.zoom, 3 / v.zoom]);
+    ctx.strokeRect(s.x + 0.5, s.y + 0.5, s.w, s.h);
+    ctx.restore();
+  }
+
+  private positionTileDragOverlay(): void {
+    const overlay = this.querySelector('.tile-selection-drag') as HTMLElement | null;
+    if (!overlay) return;
+    const s = this.kind === 'original' ? store.sourceTileSelection : store.tileSelection;
+    const show = store.mode === 'tile' && !!s;
+    if (!show || !s) {
+      overlay.hidden = true;
+      return;
+    }
+    const canvas = this.canvas();
+    const wrap = this.querySelector('.canvas-wrap') as HTMLElement | null;
+    if (!canvas || !wrap || !canvas.width) {
+      overlay.hidden = true;
+      return;
+    }
+    const v = store.views[this.kind];
+    const cr = canvas.getBoundingClientRect();
+    const wr = wrap.getBoundingClientRect();
+    overlay.hidden = false;
+    overlay.style.left = `${cr.left - wr.left + s.x * v.zoom}px`;
+    overlay.style.top = `${cr.top - wr.top + s.y * v.zoom}px`;
+    overlay.style.width = `${s.w * v.zoom}px`;
+    overlay.style.height = `${s.h * v.zoom}px`;
+  }
+
+  private onTileDragStart(e: DragEvent): void {
+    const s = this.kind === 'original' ? store.sourceTileSelection : store.tileSelection;
+    if (!s || !e.dataTransfer) return;
+    if (this.kind === 'original') {
+      // Vanuit het linkerpaneel kopiëren we naar het resultaat (niet verplaatsen).
+      e.dataTransfer.setData(SOURCE_TILE_DRAG_TYPE, '1');
+      e.dataTransfer.effectAllowed = 'copy';
+    } else {
+      e.dataTransfer.setData(TILE_SELECTION_DRAG_TYPE, '1');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    e.dataTransfer.setData('text/plain', '1');
+    const size = store.gridSize;
+    const zoom = store.views[this.kind].zoom;
+    const overlay = this.querySelector('.tile-selection-drag') as HTMLElement | null;
+    if (overlay) {
+      const rect = overlay.getBoundingClientRect();
+      const cols = Math.max(1, Math.round(s.w / size));
+      const rows = Math.max(1, Math.round(s.h / size));
+      store.dragGrab = {
+        tx: Math.min(Math.max(0, Math.floor((e.clientX - rect.left) / (size * zoom))), cols - 1),
+        ty: Math.min(Math.max(0, Math.floor((e.clientY - rect.top) / (size * zoom))), rows - 1),
+      };
+    }
+  }
+
+  private onTileDragEnd(): void {
+    this.querySelector('.canvas-wrap')?.classList.remove('dropping');
+  }
+
+  private stampDroppedTile(e: DragEvent, data: string): void {
+    try {
+      const obj = JSON.parse(data) as { size: number; rgba: number[] };
+      const rgba = Uint8Array.from(obj.rgba);
+      const canvas = this.canvas();
+      if (!canvas) return;
+      const p = this.toIff(this.point(e, canvas));
+      store.stampTile({ size: obj.size, rgba, id: tileId(rgba) }, p.x, p.y);
+    } catch {
+      /* ignore malformed payload */
+    }
+  }
+
   private drawFloating(ctx: CanvasRenderingContext2D): void {
     if (this.kind !== 'output') return;
     const m = store.moveState;
@@ -203,6 +292,33 @@ export class PreviewPane extends LitElement {
     if (!m || !r) return;
     // Teken via een tijdelijk canvas + drawImage (source-over), zodat
     // transparante pixels het onderliggende beeld NIET overschrijven.
+    const temp = document.createElement('canvas');
+    temp.width = m.w;
+    temp.height = m.h;
+    const tctx = temp.getContext('2d')!;
+    const img = tctx.createImageData(m.w, m.h);
+    const palette = r.palette;
+    for (let y = 0; y < m.h; y++) {
+      for (let x = 0; x < m.w; x++) {
+        const idx = m.buf[y * m.w + x];
+        const o = (y * m.w + x) * 4;
+        if (idx === 0) continue; // transparant → blijft alpha 0
+        const c = palette[idx] ?? [0, 0, 0];
+        img.data[o] = c[0];
+        img.data[o + 1] = c[1];
+        img.data[o + 2] = c[2];
+        img.data[o + 3] = 255;
+      }
+    }
+    tctx.putImageData(img, 0, 0);
+    ctx.drawImage(temp, m.x, m.y);
+  }
+
+  private drawTileFloating(ctx: CanvasRenderingContext2D): void {
+    if (this.kind !== 'output') return;
+    const m = store.tileMoveState;
+    const r = store.result;
+    if (!m || !r) return;
     const temp = document.createElement('canvas');
     temp.width = m.w;
     temp.height = m.h;
@@ -246,6 +362,8 @@ export class PreviewPane extends LitElement {
       // Met een offset schuif je het raster over de graphics heen, zodat je het
       // precies op de sprite/tile-grenzen kunt leggen als die niet op (0,0) staan.
       overlay.style.backgroundPosition = `${store.gridOffsetX * v.zoom}px ${store.gridOffsetY * v.zoom}px`;
+      // Kleur van de gridlijnen (via een hue-slider instelbaar, zie tools-bar).
+      overlay.style.setProperty('--grid-color', `hsla(${store.gridHue}, 100%, 72%, 0.85)`);
       overlay.hidden = !store.showGrid;
     }
   }
@@ -365,7 +483,8 @@ export class PreviewPane extends LitElement {
     store.setView(this.kind, { ...v, zoom });
   }
 
-  /** Pas het beeld aan de beschikbare ruimte van het paneel aan (contain). */
+  /** Pas het beeld aan de beschikbare ruimte van het paneel aan (contain), maar
+   *  zoom NOOIT uit onder 100%: pixels/tiles blijven op ware grootte zichtbaar. */
   private fitToPane(): void {
     const canvas = this.canvas();
     const wrap = this.querySelector('.canvas-wrap') as HTMLElement | null;
@@ -373,7 +492,7 @@ export class PreviewPane extends LitElement {
     const pad = 20;
     const availW = Math.max(1, wrap.clientWidth - pad);
     const availH = Math.max(1, wrap.clientHeight - pad);
-    const z = Math.max(0.25, Math.min(32, Math.min(availW / canvas.width, availH / canvas.height)));
+    const z = Math.max(1, Math.min(32, Math.min(availW / canvas.width, availH / canvas.height)));
     const y = Math.max(0, Math.round((wrap.clientHeight - canvas.height * z) / 2));
     this.fittedZoom = z;
     store.setView(this.kind, { zoom: z, x: 0, y });
@@ -398,7 +517,7 @@ export class PreviewPane extends LitElement {
     store.setView(this.kind, { zoom: v.zoom, x: v.x - e.deltaX * scale, y: v.y - e.deltaY * scale });
   }
 
-  private point(e: PointerEvent, canvas: HTMLCanvasElement): { x: number; y: number } {
+  private point(e: { clientX: number; clientY: number }, canvas: HTMLCanvasElement): { x: number; y: number } {
     const r = canvas.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(canvas.width, Math.floor(((e.clientX - r.left) * canvas.width) / r.width))),
@@ -418,8 +537,24 @@ export class PreviewPane extends LitElement {
   }
 
   private onPointerDown(e: PointerEvent): void {
+    const target = e.target as HTMLElement | null;
     const canvas = this.canvas();
     if (!canvas || !canvas.width) return;
+
+    // Rechtermuis-slepen op de tile-selectie = kopiëren (zoals de select-tool).
+    if (target && target.classList.contains('tile-selection-drag') && this.kind === 'output' && e.button === 2 && store.mode === 'tile') {
+      e.preventDefault();
+      if (store.beginTileCopy()) {
+        const s = store.tileSelection!;
+        const p0 = this.point(e, canvas);
+        this.drag = { type: 'tileCopy', id: e.pointerId, x: e.clientX, y: e.clientY, px: s.x, py: s.y, sx: p0.x, sy: p0.y, button: 2, last: p0 };
+        canvas.style.cursor = 'grabbing';
+      }
+      return;
+    }
+    // Linkermuis op de overlay: native HTML5-drag handelt het af (verplaatsen/opslaan).
+    if (target && target.classList.contains('tile-selection-drag')) return;
+
     const pan = e.button === 1 || e.metaKey || e.ctrlKey || store.mode === 'pan';
     e.preventDefault();
     canvas.setPointerCapture?.(e.pointerId);
@@ -458,6 +593,23 @@ export class PreviewPane extends LitElement {
       }
       return;
     }
+    if (store.mode === 'tile') {
+      if (e.button !== 0) return;
+      const p = this.point(e, canvas);
+      // Bestaande selecties worden verplaatst/gekopieerd via de drag-overlay
+      // (native HTML5 drag), dus hier alleen een nieuwe selectie tekenen.
+      if (this.kind === 'original') {
+        const s = store.source;
+        if (!s) return;
+        store.setSourceTileSelection(tileSelectionFromDrag(p.x, p.y, p.x, p.y, store.gridSize, s.width, s.height));
+      } else {
+        const r = store.result;
+        if (!r) return;
+        store.setTileSelection(tileSelectionFromDrag(p.x, p.y, p.x, p.y, store.gridSize, r.width, r.height));
+      }
+      this.drag = { type: 'tileMarquee', id: e.pointerId, x: e.clientX, y: e.clientY, px: p.x, py: p.y, sx: p.x, sy: p.y, button: 0, last: p };
+      return;
+    }
     if (this.kind !== 'output') return;
     if (e.button !== 0 && e.button !== 2) return;
     const p = this.toIff(this.point(e, canvas));
@@ -480,11 +632,23 @@ export class PreviewPane extends LitElement {
     } else if (d.type === 'move') {
       const p = this.point(e, canvas);
       store.moveSelectionTo(d.px + (p.x - d.sx), d.py + (p.y - d.sy));
+    } else if (d.type === 'tileCopy') {
+      const p = this.point(e, canvas);
+      store.moveTileCopyTo(d.px + (p.x - d.sx), d.py + (p.y - d.sy));
     } else if (d.type === 'marquee') {
       const p = this.point(e, canvas);
       const x0 = Math.min(d.sx, p.x);
       const y0 = Math.min(d.sy, p.y);
       store.setSelection({ x: x0, y: y0, w: Math.max(d.sx, p.x) - x0 + 1, h: Math.max(d.sy, p.y) - y0 + 1 });
+    } else if (d.type === 'tileMarquee') {
+      const p = this.point(e, canvas);
+      if (this.kind === 'original') {
+        const s = store.source;
+        if (s) store.setSourceTileSelection(tileSelectionFromDrag(d.sx, d.sy, p.x, p.y, store.gridSize, s.width, s.height));
+      } else {
+        const r = store.result;
+        if (r) store.setTileSelection(tileSelectionFromDrag(d.sx, d.sy, p.x, p.y, store.gridSize, r.width, r.height));
+      }
     } else {
       const p = this.toIff(this.point(e, canvas));
       this.drawLine(d.last.x, d.last.y, p.x, p.y, d.button);
@@ -495,8 +659,10 @@ export class PreviewPane extends LitElement {
   private onPointerUp(e: PointerEvent): void {
     if (!this.drag || this.drag.id !== e.pointerId) return;
     const wasMove = this.drag.type === 'move';
+    const wasTileCopy = this.drag.type === 'tileCopy';
     this.drag = null;
     if (wasMove) store.endMoveSelection();
+    if (wasTileCopy) store.endTileCopy();
     this.setCanvasCursor(e);
   }
 
@@ -537,6 +703,14 @@ export class PreviewPane extends LitElement {
   }
 
   private onDragOver(e: DragEvent): void {
+    const dt = e.dataTransfer;
+    if (dt && (dt.types.includes(TILE_DRAG_TYPE) || dt.types.includes(TILE_SELECTION_DRAG_TYPE) || dt.types.includes(SOURCE_TILE_DRAG_TYPE))) {
+      if (this.kind !== 'output') return;
+      e.preventDefault();
+      dt.dropEffect = dt.types.includes(TILE_SELECTION_DRAG_TYPE) ? 'move' : 'copy';
+      this.querySelector('.canvas-wrap')?.classList.add('dropping');
+      return;
+    }
     if (this.kind !== 'original') return;
     e.preventDefault();
     this.querySelector('.canvas-wrap')?.classList.add('dropping');
@@ -547,9 +721,44 @@ export class PreviewPane extends LitElement {
   }
 
   private onDrop(e: DragEvent): void {
+    const wrap = this.querySelector('.canvas-wrap');
+    const dt = e.dataTransfer;
+    const tileData = dt?.getData(TILE_DRAG_TYPE);
+    if (tileData) {
+      e.preventDefault();
+      wrap?.classList.remove('dropping');
+      if (this.kind !== 'output') return;
+      this.stampDroppedTile(e, tileData);
+      return;
+    }
+    if (dt?.types.includes(TILE_SELECTION_DRAG_TYPE)) {
+      e.preventDefault();
+      wrap?.classList.remove('dropping');
+      if (this.kind !== 'output') return;
+      const canvas = this.canvas();
+      if (!canvas) return;
+      const p = this.point(e, canvas);
+      const size = store.gridSize;
+      const tx = Math.floor(p.x / size) - store.dragGrab.tx;
+      const ty = Math.floor(p.y / size) - store.dragGrab.ty;
+      store.moveTileSelection(tx * size, ty * size);
+      return;
+    }
+    if (dt?.types.includes(SOURCE_TILE_DRAG_TYPE)) {
+      e.preventDefault();
+      wrap?.classList.remove('dropping');
+      if (this.kind !== 'output') return;
+      const canvas = this.canvas();
+      const srcSel = store.sourceTileSelection;
+      if (!canvas || !srcSel) return;
+      const p = this.point(e, canvas);
+      const size = store.gridSize;
+      store.copySourceToResult(srcSel, p.x - store.dragGrab.tx * size, p.y - store.dragGrab.ty * size);
+      return;
+    }
     if (this.kind !== 'original') return;
     e.preventDefault();
-    this.querySelector('.canvas-wrap')?.classList.remove('dropping');
+    wrap?.classList.remove('dropping');
     const f = e.dataTransfer?.files?.[0];
     if (f) store.loadFile(f);
   }

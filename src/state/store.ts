@@ -1,10 +1,11 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
-import { rgbDist } from '../core/color';
+import { nearest, rgbDist } from '../core/color';
 import { convert } from '../core/convert';
 import type { DitherPattern } from '../core/dither';
 import type { ConvertResult } from '../core/convert';
-import type { RGB, Sampling, Selection, Target, ToolMode, ViewState } from '../core/types';
+import type { RGB, Sampling, Selection, Target, Tile, ToolMode, ViewState } from '../core/types';
+import { copyRegion, extractUniqueSourceTiles, readTileRgb, snapToTile } from '../core/tiles';
 import { buildIlbm, buildPng, buildSc2, buildSc5, buildC64, buildC64Asm, buildC64Prg, buildNes, downloadFiles, type FileOutput } from '../export/exporters';
 import { C64_PALETTE, quantizeC64Multicolor } from '../core/c64';
 import { NES_PALETTE, quantizeNes } from '../core/nes';
@@ -37,6 +38,13 @@ export class AppStore {
   selection: Selection | null = null;
   clipboard: { w: number; h: number; pixels: Uint8Array } | null = null;
   moveState: { w: number; h: number; buf: Uint8Array; x: number; y: number; copy: boolean } | null = null;
+  tileSelection: Selection | null = null;
+  sourceTileSelection: Selection | null = null;
+  tileClipboard: { w: number; h: number; pixels: Uint8Array } | null = null;
+  tileMoveState: { w: number; h: number; buf: Uint8Array; x: number; y: number } | null = null;
+  savedTiles: Tile[] = [];
+  dragGrab: { tx: number; ty: number } = { tx: 0, ty: 0 };
+  manualMode = false;
   mode: ToolMode = 'pan';
   fg = 1;
   bg = 1;
@@ -44,6 +52,7 @@ export class AppStore {
   gridSize: 8 | 16 = 8;
   gridOffsetX = 0;
   gridOffsetY = 0;
+  gridHue = 0;
   brushSize = 1;
   brushShape: 'round' | 'square' = 'round';
   ditherPattern: DitherPattern = 'checkerboard';
@@ -68,6 +77,7 @@ export class AppStore {
   saveAsm = false;
   saveError = '';
   helpOpen = false;
+  loadDialogOpen = false;
 
   private listeners = new Set<Listener>();
 
@@ -167,6 +177,7 @@ export class AppStore {
   setGridSize(n: 8 | 16): void { this.gridSize = n; this.notify(); }
   setGridOffsetX(n: number): void { this.gridOffsetX = n; this.notify(); }
   setGridOffsetY(n: number): void { this.gridOffsetY = n; this.notify(); }
+  setGridHue(n: number): void { this.gridHue = n; this.notify(); }
   setBrushSize(n: number): void { this.brushSize = n; this.notify(); }
   setBrushShape(s: 'round' | 'square'): void { this.brushShape = s; this.notify(); }
   setDitherPattern(p: DitherPattern): void { this.ditherPattern = p; this.notify(); }
@@ -242,6 +253,9 @@ export class AppStore {
 
   beginUndo(): void {
     if (!this.result) return;
+    // Elke handmatige bewerking schakelt over naar "manual mode", zodat een
+    // latere target-switch het resultaat niet zomaar her-converteert (en leegt).
+    this.manualMode = true;
     this.undoStack.push(this.result.indexed.slice());
     if (this.undoStack.length > 100) this.undoStack.shift();
   }
@@ -378,8 +392,248 @@ export class AppStore {
     this.notify();
   }
 
+  // ── tile editing ─────────────────────────────────────────
+  setTileSelection(s: Selection | null): void {
+    this.tileSelection = s;
+    this.notify();
+  }
+
+  setSourceTileSelection(s: Selection | null): void {
+    this.sourceTileSelection = s;
+    this.notify();
+  }
+
+  /** Kopieer een bronregio (linkerpaneel) naar het resultaat, kleur-ge-mapped. */
+  copySourceToResult(srcSel: Selection, destX: number, destY: number): void {
+    const src = this.source;
+    const r = this.result;
+    if (!src || !r || !srcSel || srcSel.w <= 0 || srcSel.h <= 0) return;
+    const sctx = src.getContext('2d', { willReadFrequently: true });
+    if (!sctx) return;
+    const size = this.gridSize;
+    const nx = snapToTile(Math.max(0, Math.min(Math.round(destX), r.width - srcSel.w)), size);
+    const ny = snapToTile(Math.max(0, Math.min(Math.round(destY), r.height - srcSel.h)), size);
+    let data: Uint8ClampedArray;
+    try {
+      data = sctx.getImageData(srcSel.x, srcSel.y, srcSel.w, srcSel.h).data;
+    } catch {
+      return;
+    }
+    const start = this.target === 'c64' ? 0 : 1;
+    this.beginUndo();
+    for (let py = 0; py < srcSel.h; py++) {
+      for (let px = 0; px < srcSel.w; px++) {
+        const o = (py * srcSel.w + px) * 4;
+        if (data[o + 3] < 128) continue; // transparant: niet overschrijven
+        const idx = nearest(data[o], data[o + 1], data[o + 2], r.palette, start);
+        const tx = nx + px;
+        const ty = ny + py;
+        if (tx < 0 || ty < 0 || tx >= r.width || ty >= r.height) continue;
+        r.indexed[ty * r.width + tx] = idx;
+      }
+    }
+    this.redrawPreview();
+    this.notify();
+  }
+
+  private sourceTilesCache: { source: HTMLCanvasElement; size: number; tiles: Tile[] } | null = null;
+
+  /** Extract the unique tiles from the source image (memoized; uses the grid/tile size). */
+  sourceTiles(): Tile[] {
+    if (!this.source) return [];
+    if (this.sourceTilesCache && this.sourceTilesCache.source === this.source && this.sourceTilesCache.size === this.gridSize) {
+      return this.sourceTilesCache.tiles;
+    }
+    const tiles = extractUniqueSourceTiles(this.source, this.gridSize);
+    this.sourceTilesCache = { source: this.source, size: this.gridSize, tiles };
+    return tiles;
+  }
+
+  /** Stamp a tile onto the image at a tile-snapped position (colour-mapped). */
+  stampTile(tile: Tile, px: number, py: number): void {
+    const r = this.result;
+    if (!r) return;
+    const size = tile.size;
+    const x = snapToTile(px, size);
+    const y = snapToTile(py, size);
+    const start = this.target === 'c64' ? 0 : 1;
+    this.beginUndo();
+    for (let ty = 0; ty < size; ty++) {
+      for (let tx = 0; tx < size; tx++) {
+        const dx = x + tx;
+        const dy = y + ty;
+        if (dx < 0 || dy < 0 || dx >= r.width || dy >= r.height) continue;
+        const o = (ty * size + tx) * 4;
+        if (tile.rgba[o + 3] < 128) continue; // transparant: niet overschrijven
+        const idx = nearest(tile.rgba[o], tile.rgba[o + 1], tile.rgba[o + 2], r.palette, start);
+        r.indexed[dy * r.width + dx] = idx;
+      }
+    }
+    this.redrawPreview();
+    this.notify();
+  }
+
+  /** Move (cut + paste) the current tile selection to a tile-snapped position. */
+  moveTileSelection(destX: number, destY: number): void {
+    const s = this.tileSelection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    const size = this.gridSize;
+    const nx = snapToTile(Math.max(0, Math.min(Math.round(destX), r.width - s.w)), size);
+    const ny = snapToTile(Math.max(0, Math.min(Math.round(destY), r.height - s.h)), size);
+    const buf = copyRegion(r.indexed, r.width, s);
+    this.beginUndo();
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) r.indexed[(s.y + y) * r.width + (s.x + x)] = 0;
+    for (let y = 0; y < s.h; y++) {
+      for (let x = 0; x < s.w; x++) {
+        const idx = buf[y * s.w + x];
+        if (idx === 0) continue; // transparent: don't overwrite
+        r.indexed[(ny + y) * r.width + (nx + x)] = idx;
+      }
+    }
+    this.tileSelection = { x: nx, y: ny, w: s.w, h: s.h };
+    this.redrawPreview();
+    this.notify();
+  }
+
+  /** Start een kopieer-drag van de tile-selectie (rechts slepen = dupliceren). */
+  beginTileCopy(): boolean {
+    const s = this.tileSelection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return false;
+    this.tileMoveState = { w: s.w, h: s.h, buf: copyRegion(r.indexed, r.width, s), x: s.x, y: s.y };
+    this.notify();
+    return true;
+  }
+
+  moveTileCopyTo(x: number, y: number): void {
+    const m = this.tileMoveState;
+    const r = this.result;
+    if (!m || !r) return;
+    const size = this.gridSize;
+    m.x = snapToTile(Math.max(0, Math.min(Math.round(x), r.width - m.w)), size);
+    m.y = snapToTile(Math.max(0, Math.min(Math.round(y), r.height - m.h)), size);
+    this.notify();
+  }
+
+  endTileCopy(): void {
+    const m = this.tileMoveState;
+    const r = this.result;
+    if (!m || !r) return;
+    this.beginUndo();
+    for (let y = 0; y < m.h; y++) {
+      for (let x = 0; x < m.w; x++) {
+        const idx = m.buf[y * m.w + x];
+        if (idx === 0) continue; // transparant: niet overschrijven
+        r.indexed[(m.y + y) * r.width + (m.x + x)] = idx;
+      }
+    }
+    this.tileSelection = { x: m.x, y: m.y, w: m.w, h: m.h };
+    this.tileMoveState = null;
+    this.redrawPreview();
+    this.notify();
+  }
+
+  cancelTileCopy(): void {
+    if (this.tileMoveState) {
+      this.tileMoveState = null;
+      this.notify();
+    }
+  }
+
+  copyTileSelection(): void {
+    const s = this.tileSelection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    this.tileClipboard = { w: s.w, h: s.h, pixels: copyRegion(r.indexed, r.width, s) };
+    this.setStatus('TILES COPIED', `Copied ${Math.round(s.w / this.gridSize)}×${Math.round(s.h / this.gridSize)} tiles.`);
+  }
+
+  cutTileSelection(): void {
+    const s = this.tileSelection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    this.tileClipboard = { w: s.w, h: s.h, pixels: copyRegion(r.indexed, r.width, s) };
+    this.beginUndo();
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) r.indexed[(s.y + y) * r.width + (s.x + x)] = 0;
+    this.redrawPreview();
+    this.notify();
+  }
+
+  pasteTileSelection(): void {
+    const c = this.tileClipboard;
+    const r = this.result;
+    if (!c || !r) return;
+    const s = this.tileSelection;
+    const size = this.gridSize;
+    // Vul de hele (tile-uitgelijnde) selectie met het gekopieerde blok (getegeld).
+    // Zonder selectie wordt het blok één keer op (0,0) geplakt.
+    const hasSel = !!s && s.w > 0 && s.h > 0;
+    const rx = hasSel ? snapToTile(s!.x, size) : 0;
+    const ry = hasSel ? snapToTile(s!.y, size) : 0;
+    // Paste-regio = max(selectie, clipboard), zodat een groter gekopieerd blok
+    // volledig wordt geplakt, én een kleiner blok (bv. 1 tile) de selectie vult.
+    const rw = hasSel ? Math.max(s!.w, c.w) : c.w;
+    const rh = hasSel ? Math.max(s!.h, c.h) : c.h;
+    this.beginUndo();
+    for (let py = 0; py < rh; py++) {
+      for (let px = 0; px < rw; px++) {
+        const idx = c.pixels[(py % c.h) * c.w + (px % c.w)];
+        if (idx === 0) continue; // transparant: niet overschrijven
+        const tx = rx + px;
+        const ty = ry + py;
+        if (tx < 0 || ty < 0 || tx >= r.width || ty >= r.height) continue;
+        r.indexed[ty * r.width + tx] = idx;
+      }
+    }
+    this.redrawPreview();
+    this.notify();
+  }
+
+  deleteTileSelection(): void {
+    const s = this.tileSelection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    this.beginUndo();
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) r.indexed[(s.y + y) * r.width + (s.x + x)] = 0;
+    this.redrawPreview();
+    this.notify();
+  }
+
+  /** Save each tile inside the current tile selection into the library. */
+  addTileSelectionToLibrary(): void {
+    const s = this.tileSelection;
+    const r = this.result;
+    if (!s || !r || s.w <= 0 || s.h <= 0) return;
+    const size = this.gridSize;
+    const cols = Math.max(1, Math.round(s.w / size));
+    const rows = Math.max(1, Math.round(s.h / size));
+    let added = 0;
+    for (let ty = 0; ty < rows; ty++) {
+      for (let tx = 0; tx < cols; tx++) {
+        const tile = readTileRgb(r.indexed, r.width, r.height, r.palette, Math.round(s.x / size) + tx, Math.round(s.y / size) + ty, size);
+        if (!this.savedTiles.some((t) => t.id === tile.id)) {
+          this.savedTiles.push(tile);
+          added++;
+        }
+      }
+    }
+    this.notify();
+    if (added > 0) this.setStatus('TILE LIBRARY', `Added ${added} tile${added === 1 ? '' : 's'} to the library.`);
+  }
+
   /** ESC: selectie opheffen, of een lopende versleping annuleren. */
   deselect(): void {
+    if (this.tileMoveState) {
+      this.tileMoveState = null;
+      this.notify();
+      return;
+    }
+    if (this.tileSelection) {
+      this.tileSelection = null;
+      this.notify();
+      return;
+    }
     if (this.moveState) {
       const wasCopy = this.moveState.copy;
       this.moveState = null;
@@ -433,7 +687,13 @@ export class AppStore {
       this.sourceType = format;
       this.views = { original: { zoom: 1, x: 0, y: 0 }, output: { zoom: 1, x: 0, y: 0 } };
       this.selection = null;
-      this.reconvert();
+      this.tileSelection = null;
+      this.sourceTileSelection = null;
+      this.tileMoveState = null;
+      this.manualMode = false;
+      // Vraag of de preview voorgevuld moet worden, in plaats van direct converteren.
+      this.loadDialogOpen = true;
+      this.notify();
     } catch (e) {
       this.setStatus('LOAD ERROR', e instanceof Error ? e.message : 'Something went wrong.');
     }
@@ -576,11 +836,36 @@ export class AppStore {
     }
   }
 
+  /** Gebruiker kiest: preview wél voorvullen met de conversie. */
+  chooseFillResult(): void {
+    this.loadDialogOpen = false;
+    this.manualMode = false;
+    this.reconvert();
+  }
+
+  /** Gebruiker kiest: leeg beginnen (alleen palet + afmetingen, pixels transparant). */
+  chooseEmptyResult(): void {
+    this.loadDialogOpen = false;
+    this.manualMode = true;
+    this.reconvert();
+    const r = this.result;
+    if (r) {
+      r.indexed.fill(0);
+      this.redrawPreview();
+      this.setStatus('EMPTY CANVAS', `${r.width}×${r.height}px — drag tiles from the left panel to fill it.`);
+    }
+  }
+
   private reconvert(): void {
     if (!this.source) {
       this.notify();
       return;
     }
+    // In manual mode bewaren we de handmatig opgebouwde pixels, zodat een
+    // target-/instelling-switch het resultaat niet overschrijft.
+    const prev = this.manualMode && this.result
+      ? { w: this.result.width, h: this.result.height, pixels: this.result.indexed.slice() }
+      : null;
     try {
       const converted = convert(this.source, {
         target: this.target,
@@ -634,9 +919,22 @@ export class AppStore {
         converted.height = decoded.height;
         converted.preview = indexedToCanvas(decoded.indexed, converted.palette, decoded.width, decoded.height, true);
       }
+      if (prev) {
+        // Leg de bewaarde pixels terug over het verse resultaat (top-left).
+        converted.indexed.fill(0);
+        const cw = Math.min(prev.w, converted.width);
+        const ch = Math.min(prev.h, converted.height);
+        for (let y = 0; y < ch; y++) {
+          for (let x = 0; x < cw; x++) converted.indexed[y * converted.width + x] = prev.pixels[y * prev.w + x];
+        }
+        const transparentZero = this.target !== 'c64' && this.target !== 'nes';
+        converted.preview = indexedToCanvas(converted.indexed, converted.palette, converted.width, converted.height, transparentZero);
+      }
       this.result = converted;
       this.selection = null;
       this.moveState = null;
+      this.tileSelection = null;
+      this.tileMoveState = null;
       this.setStatus(
         'CONVERTED',
         `${this.result.width}×${this.result.height}px · ${this.result.palette.length} colours · ready for ${this.targetLabel()} export.`,

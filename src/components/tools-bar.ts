@@ -48,6 +48,16 @@ export const MODES: { id: ToolMode; label: string; paths: string[] }[] = [
     ],
   },
   {
+    id: 'tile',
+    label: 'Tile (T)',
+    paths: [
+      'M3 3h8v8H3z',
+      'M13 3h8v8h-8z',
+      'M3 13h8v8H3z',
+      'M13 13h8v8h-8z',
+    ],
+  },
+  {
     id: 'pan',
     label: 'Hand (H)',
     paths: [
@@ -152,6 +162,11 @@ export class ToolsBar extends LitElement {
             <input inputmode="numeric" type="number" step="1" placeholder="Y" .value=${String(store.gridOffsetY)} @change=${(e: Event) => store.setGridOffsetY(Number((e.target as HTMLInputElement).value) || 0)} />
           </span>
         </div>
+        <div class="row">
+          <label>COLOUR</label>
+          <span class="grid-swatch" style=${`background: hsl(${store.gridHue}, 100%, 72%)`}></span>
+        </div>
+        <input type="range" min="0" max="359" .value=${String(store.gridHue)} @input=${(e: Event) => store.setGridHue(Number((e.target as HTMLInputElement).value))} />
         <p class="hint">Pencil: left-click = foreground, right-click = background · Eraser: transparent · Eyedropper: pick colour · Select: drag to select, drag inside to move (Ctrl+C/X/V = copy/cut/paste) · Hand: pan.</p>
       </div>
     `;

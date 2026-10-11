@@ -47,17 +47,15 @@ function scaledDims(
   if (!o.resample) return null;
   const explicitW = Number(o.widthInput);
   const explicitH = Number(o.heightInput);
-  // Gebruikersschaal (1 = 100%). Voor MSX-doelen wordt de afbeelding eerst
-  // proportioneel verkleind tot het grootste formaat dat in het scherm past
-  // (contain, alleen verkleinen — nooit vergroten). Daarna kan de SCALE-slider
-  // hem nog verder verkleinen; de rest wordt in de exporter opgevuld.
+  // Gebruikersschaal (1 = 100%). Voor MSX-doelen wordt de afbeelding NIET meer
+  // automatisch verkleind naar het scherm — de pixels blijven 1:1 zodat tiles
+  // niet vervormen. De exporter snijdt het beeld bij (top-left) als het groter
+  // is dan het scherm. C64/NES houden hun eigen contain-schaal.
   let scale = o.scale / 100;
   if (!explicitW && !explicitH) {
-    if (o.target === 'sc5') scale *= Math.min(1, 256 / source.width, 212 / source.height);
-    else if (o.target === 'sc2') scale *= Math.min(1, 256 / source.width, 192 / source.height);
     // C64 multicolor pixels are twice as wide as they are tall. Fit the image
     // inside the physical 320×200 display, then store half the physical width.
-    else if (o.target === 'c64') scale *= Math.min(1, 320 / source.width, 200 / source.height);
+    if (o.target === 'c64') scale *= Math.min(1, 320 / source.width, 200 / source.height);
     // NES: pas het beeld proportioneel in het 256×240-scherm (contain, alleen verkleinen).
     else if (o.target === 'nes') scale *= Math.min(1, 256 / source.width, 240 / source.height);
   }

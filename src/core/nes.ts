@@ -52,6 +52,8 @@ export interface NesResult {
   attributeTable: Uint8Array;
   /** 256×240 gedecodeerde NES-kleurindices (voor preview). */
   indexed: Uint8Array;
+  /** True als er meer dan 256 unieke tiles waren en er dus samengevoegd is. */
+  overflow: boolean;
 }
 
 /** Kwadratische RGB-afstand tussen twee NES-kleuren. */
@@ -295,5 +297,6 @@ export function quantizeNes(indexed: Uint8Array, width: number, height: number):
     nameTable,
     attributeTable,
     indexed: out,
+    overflow,
   };
 }

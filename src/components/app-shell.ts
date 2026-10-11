@@ -41,17 +41,38 @@ export class AppShell extends LitElement {
     }
     const k = e.key.toLowerCase();
     if (e.metaKey || e.ctrlKey) {
-      if (k === 'c') { e.preventDefault(); store.copySelection(); return; }
-      if (k === 'x') { e.preventDefault(); store.cutSelection(); return; }
-      if (k === 'v') { e.preventDefault(); store.pasteSelection(); return; }
+      if (k === 'c') {
+        e.preventDefault();
+        if (store.mode === 'tile') store.copyTileSelection();
+        else store.copySelection();
+        return;
+      }
+      if (k === 'x') {
+        e.preventDefault();
+        if (store.mode === 'tile') store.cutTileSelection();
+        else store.cutSelection();
+        return;
+      }
+      if (k === 'v') {
+        e.preventDefault();
+        if (store.mode === 'tile') store.pasteTileSelection();
+        else store.pasteSelection();
+        return;
+      }
     }
-    if (k === 'delete' || k === 'backspace') { e.preventDefault(); store.deleteSelection(); return; }
+    if (k === 'delete' || k === 'backspace') {
+      e.preventDefault();
+      if (store.mode === 'tile') store.deleteTileSelection();
+      else store.deleteSelection();
+      return;
+    }
     if (k === 'escape') { e.preventDefault(); store.deselect(); return; }
     if (k === 'p') store.setMode('pencil');
     else if (k === 'e') store.setMode('eraser');
     else if (k === 'i') store.setMode('picker');
     else if (k === 'd') store.setMode('dither');
     else if (k === 's') store.setMode('select');
+    else if (k === 't') store.setMode('tile');
     else if (k === 'h') store.setMode('pan');
   };
 
@@ -60,6 +81,7 @@ export class AppShell extends LitElement {
       <pf-menu-bar></pf-menu-bar>
       <input id="file" type="file" accept="image/png,.png,.iff,.ilbm,.lbm,.sc5,.sc2,.pal" @change=${this.onFileChange} />
       <pf-save-dialog></pf-save-dialog>
+      <pf-load-dialog></pf-load-dialog>
       <pf-help-dialog></pf-help-dialog>
       <div class="app">
         <pf-side-bar></pf-side-bar>

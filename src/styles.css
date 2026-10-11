@@ -58,6 +58,7 @@ body {
 .app {
   display: grid;
   grid-template-columns: 278px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100vh - 64px);
   min-height: 0;
 }
@@ -109,6 +110,7 @@ input[type='range']:disabled {
   min-width: 0; width: 100%; background: #f5f5f5; border: 0;
   padding: 4px; color: #111; font: 12px monospace;
 }
+.grid-swatch { width: 18px; height: 18px; border: 1px solid #8793a6; border-radius: 3px; flex: 0 0 auto; }
 select { font: inherit; background: #273348; color: var(--ink); border: 1px solid #61708a; padding: 3px 5px; }
 
 .palette { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -130,9 +132,36 @@ select { font: inherit; background: #273348; color: var(--ink); border: 1px soli
   position: absolute; left: 50%; top: 0; transform-origin: top left;
   pointer-events: none; z-index: 5;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.22) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-color, rgba(255, 255, 255, 0.6)) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-color, rgba(255, 255, 255, 0.6)) 1px, transparent 1px);
 }
+.tile-selection-drag {
+  position: absolute; z-index: 30;
+  cursor: grab;
+  outline: 2px solid #4ade80;
+  outline-offset: -2px;
+  background: rgba(74, 222, 128, 0.12);
+}
+.tile-selection-drag:active { cursor: grabbing; }
+
+/* ── tile library ─────────────────────────────────────── */
+.tile-grid {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;
+  max-height: 280px; overflow-y: auto;
+  align-content: flex-start;
+}
+.tile-thumb {
+  width: 32px; height: 32px;
+  border: 1px solid #8793a6;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  cursor: grab;
+  background-image:
+    linear-gradient(45deg, var(--check1) 25%, transparent 25%, transparent 75%, var(--check1) 75%),
+    linear-gradient(45deg, var(--check1) 25%, transparent 25%, transparent 75%, var(--check1) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+}
+.tile-thumb:hover { border-color: var(--yellow); }
 
 /* ── main / previews ──────────────────────────────────── */
 .main { padding: 20px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -229,6 +258,9 @@ pf-preview-pane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-
 .nav button { width: 34px; height: 32px; font-size: 21px; font-weight: bold; line-height: 1; }
 .nav button:last-child { font-size: 18px; }
 .nav .fit-btn { width: auto; padding: 0 9px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px; }
+.nav .one-btn { width: auto; padding: 0 7px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px; }
+.zoom-badge { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.selection-size { margin-left: 8px; }
 
 /* tooltip */
 .tip { position: relative; display: inline-flex; align-items: center; }
@@ -296,7 +328,7 @@ pf-preview-pane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-
 .help-desc { color: var(--muted); }
 
 @media (max-width: 960px) {
-  .app { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 64px); }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; min-height: calc(100vh - 64px); }
   aside { border-right: 0; border-bottom: 2px solid #45536a; }
   .previews { flex-direction: column; }
   .canvas-wrap { flex: 0 0 auto; height: 430px; }

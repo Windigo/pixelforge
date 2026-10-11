@@ -10,6 +10,7 @@ export class SideBar extends LitElement {
       <aside>
         <pf-palette-controls></pf-palette-controls>
         <pf-tools-bar></pf-tools-bar>
+        <pf-tile-library></pf-tile-library>
       </aside>
     `;
   }

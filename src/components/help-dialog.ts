@@ -9,6 +9,7 @@ const TOOL_DESC: Record<ToolMode, string> = {
   dither: 'Blend two colours',
   picker: 'Pick a colour',
   select: 'Select and move',
+  tile: 'Tile editing: select, move, and stamp tiles',
   pan: 'Pan the image',
 };
 
